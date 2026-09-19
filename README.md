@@ -18,9 +18,10 @@ From a checkout: `uv sync --extra vast` or `uv sync --extra all`.
 ```bash
 gpubox list -p vast --gpu RTX_4090 --rank
 gpubox rent -p vast --gpu RTX_4090 --cmd nvidia-smi
+gpubox list -p runpod --gpu "NVIDIA RTX A4000" --raw COMMUNITY --rank
 ```
 
-`rent` always destroys. Keys come from `VAST_API_KEY` / `RUNPOD_API_KEY` / `LAMBDA_API_KEY` or `--api-key`.
+`rent` ranks, takes the first offer, then always destroys. Keys come from `VAST_API_KEY` / `RUNPOD_API_KEY` / `LAMBDA_API_KEY` or `--api-key`. RunPod and Lambda SSH keys come from `--ssh-key` or `RUNPOD_SSH_KEY` / `LAMBDA_SSH_KEY`.
 
 Extras:
 
@@ -43,7 +44,7 @@ cloud.run(box, "nvidia-smi")
 cloud.destroy(box)
 ```
 
-`rank_offers` is arithmetic on one provider list. Score is `price_weight * price_per_hour - reliability_weight * (reliability or 0) - disk_weight * (disk_space or 0)`; lower wins; non-finite price last. It is not a Protocol method and does not merge clouds.
+`rank_offers` is arithmetic on one provider list. Score is `price_weight * price_per_hour - reliability_weight * reliability - disk_weight * disk_space`; missing or non-finite reliability/disk count as 0; non-finite price last. It is not a Protocol method and does not merge clouds.
 
 `wait_until_ssh` and `ssh_is_open` are helpers. They are not methods on `GpuCloud`.
 

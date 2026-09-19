@@ -190,7 +190,12 @@ class VastCloud:
         if spec.start_command:
             payload["onstart_cmd"] = spec.start_command
         payload.update(spec.extra)
-        result = _as_dict(self.client.create_instance(int(offer_id), **payload))
+        try:
+            result = _as_dict(self.client.create_instance(int(offer_id), **payload))
+        except ProviderError:
+            raise
+        except Exception as exc:
+            raise ProviderError(f"Vast create failed: {exc}", provider="vast") from exc
         if not result.get("success") and "new_contract" not in result:
             _raise_vast(result, action="create")
         contract = result.get("new_contract") or result.get("instance_id")
@@ -203,7 +208,12 @@ class VastCloud:
         return str(contract)
 
     def destroy(self, instance_id: str) -> None:
-        self.client.destroy_instance(int(instance_id))
+        try:
+            self.client.destroy_instance(int(instance_id))
+        except ProviderError:
+            raise
+        except Exception as exc:
+            raise ProviderError(f"Vast destroy failed: {exc}", provider="vast") from exc
 
     def status(self, instance_id: str) -> Instance:
         row = self._show_instance(instance_id)
@@ -228,7 +238,12 @@ class VastCloud:
         return instance_from_row(row, ssh_is_open(host, port))
 
     def run(self, instance_id: str, command: str) -> str:
-        return _as_text(self.client.execute(int(instance_id), command))
+        try:
+            return _as_text(self.client.execute(int(instance_id), command))
+        except ProviderError:
+            raise
+        except Exception as exc:
+            raise ProviderError(f"Vast execute failed: {exc}", provider="vast") from exc
 
     def logs(self, instance_id: str) -> str:
         return _as_text(self.client.logs(instance_id=int(instance_id), tail="80"))

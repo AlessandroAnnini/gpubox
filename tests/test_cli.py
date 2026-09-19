@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from gpubox._cli import main
+from gpubox._errors import SshNotReady
+from gpubox.testing import FakeCloud
 
 
 def test_list_fake(capsys) -> None:
@@ -24,3 +26,43 @@ def test_status_and_destroy_fake(capsys) -> None:
     assert main(["status", "-p", "fake", "77"]) == 0
     assert "ssh_open=False" in capsys.readouterr().out
     assert main(["destroy", "-p", "fake", "77"]) == 0
+
+
+def test_rent_returns_1_and_destroys_on_ssh_fail(monkeypatch, capsys) -> None:
+    cloud = FakeCloud()
+
+    def boom(*_a, **_k):
+        raise SshNotReady("no ssh")
+
+    monkeypatch.setattr("gpubox._cli.connect", lambda *_a, **_k: cloud)
+    monkeypatch.setattr("gpubox._cli.wait_until_ssh", boom)
+    assert main(["rent", "-p", "fake", "--timeout", "1"]) == 1
+    assert "no ssh" in capsys.readouterr().err
+    assert cloud.destroyed is True
+
+
+def test_list_passes_raw_query(monkeypatch, capsys) -> None:
+    seen: dict = {}
+
+    class Cloud(FakeCloud):
+        def list_offers(self, query=None):
+            seen["raw"] = query.raw if query else None
+            return super().list_offers(query)
+
+    monkeypatch.setattr("gpubox._cli.connect", lambda *_a, **_k: Cloud())
+    assert main(["list", "-p", "fake", "--raw", "COMMUNITY"]) == 0
+    capsys.readouterr()
+    assert seen["raw"] == "COMMUNITY"
+
+
+def test_list_passes_ssh_key_flag(monkeypatch, capsys) -> None:
+    seen: dict = {}
+
+    def fake_connect(provider, api_key="", **kwargs):
+        seen.update(kwargs)
+        return FakeCloud()
+
+    monkeypatch.setattr("gpubox._cli.connect", fake_connect)
+    assert main(["list", "-p", "fake", "--ssh-key", "/tmp/k"]) == 0
+    capsys.readouterr()
+    assert seen["ssh_key"] == "/tmp/k"

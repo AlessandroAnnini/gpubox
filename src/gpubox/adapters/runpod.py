@@ -122,6 +122,9 @@ def _raise_http(method: str, path: str, status_code: int, detail: str) -> None:
         raise NotFound(message)
     if status_code in {409, 422, 429}:
         raise Unavailable(message)
+    low = detail.lower()
+    if status_code == 500 and "no instances" in low and "available" in low:
+        raise Unavailable(message)
     raise ProviderError(message, provider="runpod", status_code=status_code, detail=detail)
 
 

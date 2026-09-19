@@ -1,5 +1,6 @@
 # Changelog
 
+All notable changes to this project are documented here.
 
 ## [0.7.2] - 2026-09-19
 
@@ -24,7 +25,6 @@
 ### Added
 
 - Feature `gpubox-author` shipped to develop.
-All notable changes to this project are documented here.
 
 ## [0.6.0] - 2026-09-19
 

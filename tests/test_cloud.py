@@ -325,6 +325,21 @@ def test_runpod_account_skips_graphql_when_client_injected() -> None:
     assert account.credit == 0
 
 
+def test_runpod_capacity_500_is_unavailable() -> None:
+    cloud = RunPodCloud(ClientConfig(api_key="k"), client=_CapacityHttp())
+    with pytest.raises(Unavailable, match="no instances currently available"):
+        cloud.create(
+            encode_sku("NVIDIA GeForce RTX 4090", "COMMUNITY"),
+            LaunchSpec(image="ubuntu:22.04"),
+        )
+
+
+def test_vast_run_wraps_vendor_errors() -> None:
+    cloud = VastCloud(ClientConfig(api_key="k"), client=_BoomExecute())
+    with pytest.raises(ProviderError, match="Vast execute failed"):
+        cloud.run("77", "true")
+
+
 def test_lambda_create_passes_start_command() -> None:
     client = _FakeLambdaHttp()
     cloud = LambdaCloud(ClientConfig(api_key="k"), client=client)
@@ -455,6 +470,22 @@ class _EmptyUserHttp(_FakeHttp):
         if path == "/user":
             return _Response(200, {})
         return super().request(method, path, **kwargs)
+
+
+class _CapacityHttp(_FakeHttp):
+    def request(self, method: str, path: str, **kwargs: object) -> _Response:
+        if path == "/pods" and method == "POST":
+            text = '{"error":"there are currently no instances currently available"}'
+            response = _Response(500, {"error": "there are currently no instances currently available"})
+            response.text = text
+            return response
+        return super().request(method, path, **kwargs)
+
+
+class _BoomExecute(_FakeVast):
+    def execute(self, instance_id: int, command: str) -> str:
+        del instance_id, command
+        raise RuntimeError("400 Client Error: execute")
 
 
 class _FakeLambdaHttp:

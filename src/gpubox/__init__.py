@@ -15,10 +15,10 @@ from gpubox._models import (
     Offer,
     OfferQuery,
 )
-from gpubox._protocol import GpuCloud, StudioCloud
+from gpubox._protocol import GpuCloud
 from gpubox._rank import rank_offers
 from gpubox._ssh import ssh_is_open, wait_until_ssh
-from gpubox.testing import FakeCloud, MemoryCloud
+from gpubox.testing import FakeCloud
 
 __all__ = [
     "Account",
@@ -29,13 +29,11 @@ __all__ = [
     "GpuCloud",
     "Instance",
     "LaunchSpec",
-    "MemoryCloud",
     "NotFound",
     "Offer",
     "OfferQuery",
     "ProviderError",
     "SshNotReady",
-    "StudioCloud",
     "Unavailable",
     "connect",
     "rank_offers",
