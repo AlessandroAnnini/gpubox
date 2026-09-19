@@ -4,6 +4,8 @@ Rent one GPU box, wait until SSH works, run a command, copy a file, destroy it. 
 
 This is the product tree for the Prime studio at `~/Projects/gpubox-studio`. Program notes live in `../brief/` and `../memory/`.
 
+The public API is 0.x. Pin it from `VERSION` (also the hatch version). Do not publish to PyPI until a second consumer exists (Again path pin or a CLI).
+
 ## Install
 
 ```bash
