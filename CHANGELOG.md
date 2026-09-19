@@ -1,12 +1,10 @@
 # Changelog
 
+All notable changes to this project are documented here.
 
 ## [0.7.5] - 2026-09-19
 
-### Added
-
-- Feature `github-pages-caller-docs-one-foglio-html-file-at` shipped to develop.
-All notable changes to this project are documented here.
+- Caller docs page at `docs/index.html` for GitHub Pages. README links to https://alessandroannini.github.io/gpubox/.
 
 ## [0.7.4] - 2026-09-19
 
