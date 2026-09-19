@@ -23,15 +23,18 @@ Extras:
 ## Connect
 
 ```python
-from gpubox import LaunchSpec, OfferQuery, connect, wait_until_ssh
+from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_ssh
 
 cloud = connect("vast", api_key="...")
 offers = cloud.list_offers(OfferQuery(gpu_names=["RTX_4090"], min_disk_gb=50))
+offers = rank_offers(offers, reliability_weight=0.1)
 box = cloud.create(offers[0].id, LaunchSpec(image="ubuntu:22.04", disk_gb=50))
 wait_until_ssh(cloud, box)
 cloud.run(box, "nvidia-smi")
 cloud.destroy(box)
 ```
+
+`rank_offers` is arithmetic on one provider list. Lower score wins (`price` minus weighted `reliability` and `disk_space`). It is not a Protocol method and does not merge clouds.
 
 `wait_until_ssh` and `ssh_is_open` are helpers. They are not methods on `GpuCloud`.
 

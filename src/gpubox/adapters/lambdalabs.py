@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +8,7 @@ import httpx
 
 from gpubox._errors import AuthError, NotFound, ProviderError, SshNotReady, Unavailable
 from gpubox._models import Account, ClientConfig, Instance, LaunchSpec, Offer, OfferQuery
-from gpubox._ssh import ssh_is_open
+from gpubox._ssh import run_scp, run_ssh, ssh_is_open
 
 REST_BASE = "https://cloud.lambda.ai/api/v1"
 SSH_USER = "ubuntu"
@@ -31,21 +30,9 @@ def parse_sku(offer_id: str) -> tuple[str, str]:
 
 
 def _unwrap(payload: Any) -> Any:
-    if isinstance(payload, dict) and "data" in payload and len(payload) <= 3:
+    if isinstance(payload, dict) and "data" in payload:
         return payload["data"]
     return payload
-
-
-def _first_number(row: dict[str, Any], *keys: str) -> float | None:
-    for key in keys:
-        raw = row.get(key)
-        if raw is None or raw == "":
-            continue
-        try:
-            return float(raw)
-        except (TypeError, ValueError):
-            continue
-    return None
 
 
 def _raise_http(method: str, path: str, status_code: int, detail: str) -> None:
@@ -80,20 +67,26 @@ def _user_data(command: str | None) -> str | None:
     return f"#cloud-config\nruncmd:\n  - bash -lc '{escaped}'\n"
 
 
+def _cents_to_hours(cents: Any) -> float | None:
+    if cents is None or cents == "":
+        return None
+    try:
+        return float(cents) / 100
+    except (TypeError, ValueError):
+        return None
+
+
 def instance_from_row(row: dict[str, Any], ssh_open: bool = False) -> Instance:
     host = row.get("ip") or row.get("ipv4")
     itype = row.get("instance_type")
     gpu_name = None
-    price = _first_number(row, "price_cents_per_hour")
+    price = _cents_to_hours(row.get("price_cents_per_hour"))
     if isinstance(itype, dict):
         gpu_name = itype.get("gpu_description") or itype.get("name")
         if price is None:
-            cents = itype.get("price_cents_per_hour")
-            price = float(cents) / 100 if cents is not None else None
+            price = _cents_to_hours(itype.get("price_cents_per_hour"))
     elif isinstance(itype, str):
         gpu_name = itype
-    if price is not None and price > 20:
-        price = price / 100
     region = row.get("region")
     geo = region.get("name") if isinstance(region, dict) else region
     return Instance(
@@ -253,16 +246,16 @@ class LambdaCloud:
 
     def run(self, instance_id: str, command: str) -> str:
         host, port = self._endpoint(instance_id)
-        return _run_ssh(self._ssh_key(), host, port, command)
+        return run_ssh(self._ssh_key(), host, port, SSH_USER, command, provider="lambda")
 
     def upload(self, instance_id: str, local: Path, remote: str) -> None:
         host, port = self._endpoint(instance_id)
-        _run_scp(self._ssh_key(), host, port, str(local), f"{SSH_USER}@{host}:{remote}")
+        run_scp(self._ssh_key(), host, port, str(local), f"{SSH_USER}@{host}:{remote}", provider="lambda")
 
     def download(self, instance_id: str, remote: str, local: Path) -> None:
         host, port = self._endpoint(instance_id)
         local.parent.mkdir(parents=True, exist_ok=True)
-        _run_scp(self._ssh_key(), host, port, f"{SSH_USER}@{host}:{remote}", str(local))
+        run_scp(self._ssh_key(), host, port, f"{SSH_USER}@{host}:{remote}", str(local), provider="lambda")
 
     def logs(self, instance_id: str) -> str:
         del instance_id
@@ -286,69 +279,3 @@ class LambdaCloud:
         if key is None:
             key = Path.home() / ".ssh" / "id_rsa"
         return key
-
-
-def _ssh_base(key: Path, port: int) -> list[str]:
-    if not key.is_file():
-        raise AuthError(f"Lambda SSH key missing at {key}")
-    return [
-        "-o",
-        "StrictHostKeyChecking=no",
-        "-o",
-        "UserKnownHostsFile=/dev/null",
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=8",
-        "-i",
-        str(key),
-        "-p",
-        str(port),
-    ]
-
-
-def _run_ssh(key: Path, host: str, port: int, command: str) -> str:
-    result = subprocess.run(
-        ["ssh", *_ssh_base(key, port), f"{SSH_USER}@{host}", command],
-        capture_output=True,
-        text=True,
-        timeout=180,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "ssh failed").strip(),
-            provider="lambda",
-        )
-    return result.stdout
-
-
-def _run_scp(key: Path, host: str, port: int, src: str, dst: str) -> None:
-    if not key.is_file():
-        raise AuthError(f"Lambda SSH key missing at {key}")
-    result = subprocess.run(
-        [
-            "scp",
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "UserKnownHostsFile=/dev/null",
-            "-o",
-            "BatchMode=yes",
-            "-P",
-            str(port),
-            "-i",
-            str(key),
-            src,
-            dst,
-        ],
-        capture_output=True,
-        text=True,
-        timeout=600,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "scp failed").strip(),
-            provider="lambda",
-        )
