@@ -39,5 +39,7 @@ def connect(provider: str, api_key: str = "", **kwargs: object) -> GpuCloud:
     if name in {"vast", "vastai"}:
         from gpubox.adapters.vast import VastCloud
 
+        if client is None and not config.api_key:
+            raise AuthError("VAST_API_KEY is required when provider is vast.")
         return VastCloud(config, client=client)
     raise ValueError(f"unknown provider: {provider!r}")

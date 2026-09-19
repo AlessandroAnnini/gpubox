@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -9,7 +8,7 @@ import httpx
 
 from gpubox._errors import AuthError, NotFound, ProviderError, SshNotReady, Unavailable
 from gpubox._models import Account, ClientConfig, Instance, LaunchSpec, Offer, OfferQuery
-from gpubox._ssh import ssh_is_open
+from gpubox._ssh import run_scp, run_ssh, ssh_is_open
 
 REST_BASE = "https://rest.runpod.io/v1"
 GRAPHQL_URL = "https://api.runpod.io/graphql"
@@ -178,6 +177,11 @@ class RunPodCloud:
         return response.json()
 
     def _graphql(self, query: str) -> dict[str, Any]:
+        if not self._owns_client:
+            raise ProviderError(
+                "RunPod GraphQL is skipped when an HTTP client is injected.",
+                provider="runpod",
+            )
         response = httpx.post(
             GRAPHQL_URL,
             headers={
@@ -357,16 +361,16 @@ class RunPodCloud:
 
     def run(self, instance_id: str, command: str) -> str:
         host, port = self._endpoint(instance_id)
-        return _run_ssh(self._ssh_key(), host, port, command)
+        return run_ssh(self._ssh_key(), host, port, "root", command, provider="runpod")
 
     def upload(self, instance_id: str, local: Path, remote: str) -> None:
         host, port = self._endpoint(instance_id)
-        _run_scp(self._ssh_key(), host, port, str(local), f"root@{host}:{remote}")
+        run_scp(self._ssh_key(), host, port, str(local), f"root@{host}:{remote}", provider="runpod")
 
     def download(self, instance_id: str, remote: str, local: Path) -> None:
         host, port = self._endpoint(instance_id)
         local.parent.mkdir(parents=True, exist_ok=True)
-        _run_scp(self._ssh_key(), host, port, f"root@{host}:{remote}", str(local))
+        run_scp(self._ssh_key(), host, port, f"root@{host}:{remote}", str(local), provider="runpod")
 
     def logs(self, instance_id: str) -> str:
         try:
@@ -403,69 +407,3 @@ class RunPodCloud:
         if key is None:
             key = Path.home() / ".runpod" / "ssh" / "runpodctl-ssh-key"
         return key
-
-
-def _ssh_base(key: Path, port: int) -> list[str]:
-    if not key.is_file():
-        raise AuthError(f"RunPod SSH key missing at {key}")
-    return [
-        "-o",
-        "StrictHostKeyChecking=no",
-        "-o",
-        "UserKnownHostsFile=/dev/null",
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=8",
-        "-i",
-        str(key),
-        "-p",
-        str(port),
-    ]
-
-
-def _run_ssh(key: Path, host: str, port: int, command: str) -> str:
-    result = subprocess.run(
-        ["ssh", *_ssh_base(key, port), f"root@{host}", command],
-        capture_output=True,
-        text=True,
-        timeout=180,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "ssh failed").strip(),
-            provider="runpod",
-        )
-    return result.stdout
-
-
-def _run_scp(key: Path, host: str, port: int, src: str, dst: str) -> None:
-    if not key.is_file():
-        raise AuthError(f"RunPod SSH key missing at {key}")
-    result = subprocess.run(
-        [
-            "scp",
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "UserKnownHostsFile=/dev/null",
-            "-o",
-            "BatchMode=yes",
-            "-P",
-            str(port),
-            "-i",
-            str(key),
-            src,
-            dst,
-        ],
-        capture_output=True,
-        text=True,
-        timeout=600,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "scp failed").strip(),
-            provider="runpod",
-        )

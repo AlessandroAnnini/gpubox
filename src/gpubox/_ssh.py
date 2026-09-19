@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import socket
+import subprocess
 import time
+from pathlib import Path
 
-from gpubox._errors import SshNotReady
+from gpubox._errors import AuthError, ProviderError, SshNotReady
 from gpubox._models import Instance
 from gpubox._protocol import GpuCloud
 
@@ -39,3 +41,77 @@ def wait_until_ssh(
         f"SSH did not open for {instance_id} within {timeout:.0f}s"
         + (f" (status={last.provider_status})" if last else "")
     )
+
+
+def require_ssh_key(key: Path, provider: str) -> Path:
+    if not key.is_file():
+        raise AuthError(f"{provider} SSH key missing at {key}")
+    return key
+
+
+def ssh_options(key: Path, port: int, provider: str = "SSH") -> list[str]:
+    require_ssh_key(key, provider)
+    return [
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-o",
+        "IdentitiesOnly=yes",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=8",
+        "-i",
+        str(key),
+        "-p",
+        str(port),
+    ]
+
+
+def run_ssh(key: Path, host: str, port: int, user: str, command: str, *, provider: str) -> str:
+    result = subprocess.run(
+        ["ssh", *ssh_options(key, port, provider), f"{user}@{host}", command],
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ProviderError(
+            (result.stderr or result.stdout or "ssh failed").strip(),
+            provider=provider,
+        )
+    return result.stdout
+
+
+def run_scp(key: Path, host: str, port: int, src: str, dst: str, *, provider: str) -> None:
+    require_ssh_key(key, provider)
+    result = subprocess.run(
+        [
+            "scp",
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "UserKnownHostsFile=/dev/null",
+            "-o",
+            "IdentitiesOnly=yes",
+            "-o",
+            "BatchMode=yes",
+            "-P",
+            str(port),
+            "-i",
+            str(key),
+            src,
+            dst,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ProviderError(
+            (result.stderr or result.stdout or "scp failed").strip(),
+            provider=provider,
+        )

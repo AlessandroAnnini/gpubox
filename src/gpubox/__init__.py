@@ -16,6 +16,7 @@ from gpubox._models import (
     OfferQuery,
 )
 from gpubox._protocol import GpuCloud, StudioCloud
+from gpubox._rank import rank_offers
 from gpubox._ssh import ssh_is_open, wait_until_ssh
 from gpubox.testing import FakeCloud, MemoryCloud
 
@@ -37,6 +38,7 @@ __all__ = [
     "StudioCloud",
     "Unavailable",
     "connect",
+    "rank_offers",
     "ssh_is_open",
     "wait_until_ssh",
 ]

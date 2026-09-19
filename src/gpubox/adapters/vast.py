@@ -55,7 +55,9 @@ def _first_number(row: dict[str, Any], *keys: str) -> float | None:
 def _as_gib(value: float | None) -> float | None:
     if value is None:
         return None
-    if value > 128:
+    # Vast sometimes reports MiB (24576) and sometimes GiB (24). Values in the
+    # H200 range (141 GiB) must stay as GiB.
+    if value >= 512:
         return round(value / 1024, 1)
     return value
 

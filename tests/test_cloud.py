@@ -19,9 +19,17 @@ from gpubox import (
 )
 from gpubox.adapters.lambdalabs import LambdaCloud
 from gpubox.adapters.lambdalabs import encode_sku as encode_lambda_sku
+from gpubox.adapters.lambdalabs import instance_from_row as lambda_instance_from_row
 from gpubox.adapters.lambdalabs import parse_sku as parse_lambda_sku
 from gpubox.adapters.runpod import RunPodCloud, encode_sku, parse_sku, ssh_from_pod
 from gpubox.adapters.vast import VastCloud, instance_from_row, offer_from_row
+
+
+@pytest.fixture(autouse=True)
+def _no_real_ssh_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("gpubox.adapters.vast.ssh_is_open", lambda *a, **k: False)
+    monkeypatch.setattr("gpubox.adapters.runpod.ssh_is_open", lambda *a, **k: False)
+    monkeypatch.setattr("gpubox.adapters.lambdalabs.ssh_is_open", lambda *a, **k: False)
 
 
 def test_connect_selects_fake() -> None:
@@ -42,6 +50,11 @@ def test_connect_runpod_requires_key() -> None:
 def test_connect_selects_vast() -> None:
     cloud = connect("vast", api_key="vast-test", client=_FakeVast())
     assert isinstance(cloud, VastCloud)
+
+
+def test_connect_vast_requires_key() -> None:
+    with pytest.raises(AuthError):
+        connect("vast", api_key="")
 
 
 def test_connect_unknown() -> None:
@@ -146,6 +159,16 @@ def test_offer_dph_alias() -> None:
     assert offer.dph_total == 0.4
 
 
+def test_vast_gpu_ram_keeps_large_gib() -> None:
+    offer = offer_from_row({"id": 1, "gpu_name": "H200", "gpu_ram": 141, "dph_total": 1})
+    assert offer.gpu_ram == 141
+
+
+def test_vast_gpu_ram_converts_mib() -> None:
+    offer = offer_from_row({"id": 1, "gpu_name": "RTX_4090", "gpu_ram": 24576, "dph_total": 1})
+    assert offer.gpu_ram == 24.0
+
+
 def test_vast_offer_from_row() -> None:
     offer = offer_from_row(
         {
@@ -240,6 +263,13 @@ def test_runpod_create_passes_start_command_and_max_hours() -> None:
     assert start.endswith("echo hello")
     assert "READY" not in start
     assert "terminateAfter" in client.created[0]
+
+
+def test_lambda_price_treats_cents_as_cents() -> None:
+    inst = lambda_instance_from_row(
+        {"id": "1", "status": "active", "price_cents_per_hour": 8}
+    )
+    assert inst.price_per_hour == pytest.approx(0.08)
 
 
 def test_lambda_sku_parse() -> None:
