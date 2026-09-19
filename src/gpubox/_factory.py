@@ -30,6 +30,12 @@ def connect(provider: str, api_key: str = "", **kwargs: object) -> GpuCloud:
         if not config.api_key:
             raise AuthError("RUNPOD_API_KEY is required when provider is runpod.")
         return RunPodCloud(config, client=client)  # type: ignore[arg-type]
+    if name in {"lambda", "lambdalabs"}:
+        from gpubox.adapters.lambda import LambdaCloud
+
+        if not config.api_key:
+            raise AuthError("LAMBDA_API_KEY is required when provider is lambda.")
+        return LambdaCloud(config, client=client)  # type: ignore[arg-type]
     if name in {"vast", "vastai"}:
         from gpubox.adapters.vast import VastCloud
 

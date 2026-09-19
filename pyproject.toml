@@ -15,7 +15,8 @@ dependencies = [
 [project.optional-dependencies]
 vast = ["vastai>=1.7"]
 runpod = []
-all = ["gpubox[vast,runpod]"]
+lambda = []
+all = ["gpubox[vast,runpod,lambda]"]
 
 [build-system]
 requires = ["hatchling"]
