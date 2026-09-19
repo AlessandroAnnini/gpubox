@@ -15,6 +15,7 @@ All notable changes to this project are documented here.
 - Vast create, execute, and destroy raise `ProviderError` instead of leaking vendor exceptions.
 - `gpubox rent` returns 1 and still destroys if SSH or the command fails.
 - CLI accepts `--ssh-key`, `RUNPOD_SSH_KEY` / `LAMBDA_SSH_KEY`, and `--raw`.
+- README hero is a PNG. GitHub's image proxy strips SVG `<text>`, so the wordmark vanished.
 
 ## [0.7.2] - 2026-09-19
 

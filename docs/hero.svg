@@ -1,9 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" width="960" height="240" role="img" aria-label="gpubox  rent. ssh. run. destroy.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" role="img" aria-labelledby="title desc">
+  <title id="title">gpubox</title>
+  <desc id="desc">rent. ssh. run. destroy.</desc>
   <rect width="960" height="240" fill="#111111"/>
   <g transform="translate(56 56) scale(4)">
     <rect x="4" y="4" width="24" height="24" fill="none" stroke="#F5F5F5" stroke-width="2"/>
     <rect x="22" y="22" width="8" height="8" fill="#E8A317"/>
   </g>
+  <!-- Source layout only. GitHub Camo strips SVG text; README uses docs/hero.png. -->
   <text x="220" y="118" fill="#F5F5F5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="56" font-weight="600" letter-spacing="-1">gpubox</text>
   <text x="220" y="162" fill="#E8A317" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" letter-spacing="0.08em">rent. ssh. run. destroy.</text>
 </svg>

@@ -1,4 +1,6 @@
-![gpubox](docs/hero.svg)
+<p align="center">
+  <img src="docs/hero.png" alt="gpubox — rent. ssh. run. destroy." width="960" />
+</p>
 
 # gpubox
 
@@ -34,7 +36,7 @@ cloud.run(box, "nvidia-smi")
 cloud.destroy(box)
 ```
 
-`python examples/rent.py` does the same loop on `FakeCloud` (no wallet).
+`uv run --project . examples/rent.py` does the same loop on `FakeCloud` (no wallet).
 
 ## Providers
 
