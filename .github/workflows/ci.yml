@@ -13,7 +13,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.11"
-      - run: uv run --project . --directory . pytest -q
+      - run: uv run --project . --directory . --reinstall-package gpubox pytest -q
 
   secrets:
     runs-on: ubuntu-latest
