@@ -5,6 +5,7 @@ import os
 import sys
 from collections.abc import Sequence
 
+from gpubox._errors import GpuBoxError
 from gpubox._factory import connect
 from gpubox._models import LaunchSpec, OfferQuery
 from gpubox._rank import rank_offers
@@ -17,6 +18,11 @@ _ENV_KEYS = {
     "lambda": "LAMBDA_API_KEY",
     "lambdalabs": "LAMBDA_API_KEY",
 }
+_ENV_SSH = {
+    "runpod": "RUNPOD_SSH_KEY",
+    "lambda": "LAMBDA_SSH_KEY",
+    "lambdalabs": "LAMBDA_SSH_KEY",
+}
 
 
 def _api_key(provider: str, explicit: str | None) -> str:
@@ -28,13 +34,27 @@ def _api_key(provider: str, explicit: str | None) -> str:
     return ""
 
 
+def _ssh_key(args: argparse.Namespace) -> str | None:
+    explicit = getattr(args, "ssh_key", None)
+    if explicit:
+        return str(explicit)
+    env = _ENV_SSH.get(args.provider.strip().lower())
+    if env:
+        return os.environ.get(env) or None
+    return None
+
+
 def _connect(args: argparse.Namespace):
+    ssh_key = _ssh_key(args)
+    if ssh_key:
+        return connect(args.provider, api_key=_api_key(args.provider, args.api_key), ssh_key=ssh_key)
     return connect(args.provider, api_key=_api_key(args.provider, args.api_key))
 
 
 def _query(args: argparse.Namespace) -> OfferQuery:
     gpus = list(args.gpu) if getattr(args, "gpu", None) else None
-    return OfferQuery(gpu_names=gpus, limit=int(getattr(args, "limit", 12)))
+    raw = getattr(args, "raw", None)
+    return OfferQuery(gpu_names=gpus, limit=int(getattr(args, "limit", 12)), raw=raw)
 
 
 def _print_offers(offers: Sequence) -> None:
@@ -58,13 +78,24 @@ def cmd_rent(args: argparse.Namespace) -> int:
         print("no offers", file=sys.stderr)
         return 1
     spec = LaunchSpec(image=args.image, disk_gb=args.disk_gb, label=args.label)
-    box = cloud.create(offers[0].id, spec)
+    box = None
+    rc = 1
     try:
+        box = cloud.create(offers[0].id, spec)
         wait_until_ssh(cloud, box, timeout=args.timeout)
         print(cloud.run(box, args.cmd), end="")
+        rc = 0
+    except GpuBoxError as exc:
+        print(exc, file=sys.stderr)
+        rc = 1
     finally:
-        cloud.destroy(box)
-    return 0
+        if box:
+            try:
+                cloud.destroy(box)
+            except GpuBoxError as exc:
+                print(exc, file=sys.stderr)
+                rc = 1
+    return rc
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -83,12 +114,14 @@ def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("-p", "--provider", required=True)
     common.add_argument("--api-key", default=None)
+    common.add_argument("--ssh-key", default=None)
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_list = sub.add_parser("list", parents=[common])
     p_list.add_argument("--gpu", action="append")
     p_list.add_argument("--rank", action="store_true")
     p_list.add_argument("--limit", type=int, default=12)
+    p_list.add_argument("--raw", default=None)
     p_list.set_defaults(func=cmd_list)
 
     p_rent = sub.add_parser("rent", parents=[common])
@@ -99,6 +132,7 @@ def _parser() -> argparse.ArgumentParser:
     p_rent.add_argument("--label", default="gpubox")
     p_rent.add_argument("--limit", type=int, default=12)
     p_rent.add_argument("--timeout", type=float, default=300)
+    p_rent.add_argument("--raw", default=None)
     p_rent.set_defaults(func=cmd_rent)
 
     p_status = sub.add_parser("status", parents=[common])
@@ -113,7 +147,11 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
-    return int(args.func(args))
+    try:
+        return int(args.func(args))
+    except GpuBoxError as exc:
+        print(exc, file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

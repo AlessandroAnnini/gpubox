@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from gpubox import LaunchSpec, Offer, OfferQuery, connect, rank_offers, wait_until_ssh
+from gpubox import LaunchSpec, Offer, OfferQuery, Unavailable, connect, rank_offers, wait_until_ssh
 
 _live = pytest.mark.skipif(
     os.environ.get("GPUBOX_LIVE") != "1",
@@ -45,7 +45,15 @@ def _snapshot_runpod(cloud: Any) -> set[str]:
     }
 
 
-def _rent(cloud: Any, offers: list[Offer], *, image: str, ssh_wait: bool) -> str | None:
+_RUNPOD_SKUS = (
+    "NVIDIA RTX A4000",
+    "NVIDIA RTX A5000",
+    "NVIDIA GeForce RTX 4090",
+    "NVIDIA GeForce RTX 3090",
+)
+
+
+def _rent(cloud: Any, offers: list[Offer], *, image: str) -> str:
     ranked = rank_offers(offers)
     if not ranked or ranked[0].price_per_hour > PRICE_CAP:
         pytest.skip(f"cheapest offer over {PRICE_CAP}/hr or empty")
@@ -53,6 +61,24 @@ def _rent(cloud: Any, offers: list[Offer], *, image: str, ssh_wait: bool) -> str
         ranked[0].id,
         LaunchSpec(image=image, disk_gb=16, label=LABEL),
     )
+
+
+def _rent_runpod(cloud: Any, *, image: str) -> str:
+    last: Exception | None = None
+    for gpu in _RUNPOD_SKUS:
+        offers = cloud.list_offers(OfferQuery(gpu_names=[gpu], raw="COMMUNITY", limit=4))
+        ranked = rank_offers(offers)
+        if not ranked or ranked[0].price_per_hour > PRICE_CAP:
+            continue
+        try:
+            return cloud.create(
+                ranked[0].id,
+                LaunchSpec(image=image, disk_gb=16, label=LABEL),
+            )
+        except Unavailable as exc:
+            last = exc
+            continue
+    pytest.skip(f"no RunPod COMMUNITY capacity under {PRICE_CAP}/hr ({last})")
 
 
 @_live
@@ -66,7 +92,6 @@ def test_live_vast_snapshot_rent_destroy() -> None:
             cloud,
             cloud.list_offers(OfferQuery(gpu_names=["RTX_4090", "RTX_3090"], limit=8)),
             image="nvidia/cuda:12.4.1-base-ubuntu22.04",
-            ssh_wait=True,
         )
         if box:
             created.add(box)
@@ -92,13 +117,9 @@ def test_live_runpod_snapshot_rent_destroy() -> None:
     snapshot = _snapshot_runpod(cloud)
     created: set[str] = set()
     try:
-        box = _rent(
+        box = _rent_runpod(
             cloud,
-            cloud.list_offers(
-                OfferQuery(gpu_names=["NVIDIA GeForce RTX 3090"], raw="COMMUNITY", limit=4)
-            ),
             image="runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04",
-            ssh_wait=True,
         )
         if box:
             created.add(box)
