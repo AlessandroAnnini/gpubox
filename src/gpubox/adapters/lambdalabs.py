@@ -187,8 +187,6 @@ class LambdaCloud:
                         geolocation=region_name,
                     )
                 )
-            if not regions and not region_filter:
-                continue
         return offers[: int(q.limit)]
 
     def create(self, offer_id: str, spec: LaunchSpec) -> str:
