@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [0.7.1] - 2026-09-19
+
+### Added
+
+- Feature `gpubox-live-test` shipped to develop.
+
 ## [0.7.0] - 2026-09-19
 
 ### Added
