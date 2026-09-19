@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [0.3.0] - 2026-09-19
+
+### Added
+
+- Feature `gpubox-lambda` shipped to develop.
+
 ## [0.2.0] - 2026-09-19
 
 ### Added
