@@ -4,6 +4,8 @@ Rent one GPU box, wait until SSH works, run a command, copy a file, destroy it. 
 
 MIT licensed. Author: Alessandro Annini. The public API is 0.x. Pin it from `VERSION` (also the hatch version). A CLI is the second consumer. PyPI is later, on purpose.
 
+Live check 2026-09-19: RunPod NVIDIA RTX A4000 at $0.17/hr; created, `nvidia-smi`, destroyed.
+
 ## Install
 
 ```bash
