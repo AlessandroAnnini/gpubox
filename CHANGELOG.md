@@ -1,12 +1,10 @@
 # Changelog
 
+All notable changes to this project are documented here.
 
 ## [0.7.4] - 2026-09-19
 
-### Added
-
-- Feature `cli-version-and-gpubox-version-from-the-installe` shipped to develop.
-All notable changes to this project are documented here.
+- `gpubox --version` and `gpubox.__version__` report the installed package pin.
 
 ## [0.7.3] - 2026-09-19
 
