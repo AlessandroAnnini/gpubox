@@ -720,7 +720,6 @@ wheels = [
 
 [[package]]
 name = "gpubox"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
@@ -742,12 +741,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "gpubox", extras = ["vast", "runpod", "lambda"], marker = "extra == 'all'" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "vastai", marker = "extra == 'all'", specifier = ">=1.7" },
     { name = "vastai", marker = "extra == 'vast'", specifier = ">=1.7" },
 ]
-provides-extras = ["vast", "runpod", "lambda", "all"]
+provides-extras = ["all", "lambda", "runpod", "vast"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
