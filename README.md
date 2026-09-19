@@ -2,16 +2,16 @@
 
 Rent one GPU box, wait until SSH works, run a command, copy a file, destroy it. The caller owns the job.
 
-MIT licensed. The public API is 0.x. Pin it from `VERSION` (also the hatch version). Do not publish to PyPI until a second consumer exists.
+MIT licensed. Author: Alessandro Annini. The public API is 0.x. Pin it from `VERSION` (also the hatch version). A CLI is the second consumer. PyPI is later, on purpose.
 
 ## Install
 
-From a checkout:
-
 ```bash
-uv sync --extra vast
-# or: uv sync --extra all
+uv add "gpubox[all] @ git+https://github.com/AlessandroAnnini/gpubox"
+# or: pip install "gpubox[vast] @ git+https://github.com/AlessandroAnnini/gpubox"
 ```
+
+From a checkout: `uv sync --extra vast` or `uv sync --extra all`.
 
 Extras:
 
@@ -77,10 +77,9 @@ cloud = connect("fake")
 assert isinstance(cloud, FakeCloud)
 ```
 
-`StudioCloud` is a type alias for `GpuCloud`. Prefer `GpuCloud`.
-
 ## Errors
 
+- `GpuBoxError` — base class for the errors below
 - `AuthError` — missing or rejected API key
 - `NotFound` — instance or offer is gone
 - `Unavailable` — offer cancelled or no capacity
@@ -110,7 +109,7 @@ inst = cloud.status(box)
 ## Tests
 
 ```bash
-uv run --project . --directory . pytest -q
+uv run --project . --directory . --reinstall-package gpubox pytest -q
 ```
 
 Tests use `FakeCloud` and injected vendor clients. They do not rent GPUs. Live checks are opt-in only: `GPUBOX_LIVE=1`.

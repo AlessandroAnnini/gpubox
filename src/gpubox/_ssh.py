@@ -98,6 +98,8 @@ def run_scp(key: Path, host: str, port: int, src: str, dst: str, *, provider: st
             "IdentitiesOnly=yes",
             "-o",
             "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=8",
             "-P",
             str(port),
             "-i",

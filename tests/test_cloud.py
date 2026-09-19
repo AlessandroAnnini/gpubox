@@ -286,6 +286,7 @@ def test_lambda_list_create_status_with_fake_client() -> None:
     offers = cloud.list_offers(OfferQuery(gpu_names=["A100 SXM4"]))
     assert offers[0].id == "gpu_1x_a100|us-west-1"
     assert offers[0].gpu_name == "A100 SXM4"
+    assert offers[0].price_per_hour == pytest.approx(1.29)
     box = cloud.create(
         offers[0].id,
         LaunchSpec(image="ubuntu-lts", label="box", extra={"ssh_key_name": "gpubox"}),
@@ -303,6 +304,25 @@ def test_lambda_list_create_status_with_fake_client() -> None:
     assert found is not None
     cloud.destroy(box)
     assert client.terminated == ["inst-1"]
+
+
+def test_lambda_default_ssh_key_matches_readme() -> None:
+    cloud = LambdaCloud(ClientConfig(api_key="k"), client=_FakeLambdaHttp())
+    assert cloud._ssh_key() == Path.home() / ".ssh" / "id_ed25519"
+
+
+def test_runpod_list_offers_uses_fallback_when_client_injected() -> None:
+    cloud = RunPodCloud(ClientConfig(api_key="k"), client=_FakeHttp())
+    offers = cloud.list_offers(OfferQuery(gpu_names=["NVIDIA GeForce RTX 4090"]))
+    assert offers[0].id == "NVIDIA GeForce RTX 4090|SECURE"
+    assert offers[0].price_per_hour == pytest.approx(0.74)
+
+
+def test_runpod_account_skips_graphql_when_client_injected() -> None:
+    cloud = RunPodCloud(ClientConfig(api_key="k"), client=_EmptyUserHttp())
+    account = cloud.account()
+    assert account.connected is True
+    assert account.credit == 0
 
 
 def test_lambda_create_passes_start_command() -> None:
@@ -428,6 +448,13 @@ class _FakeHttp:
 
     def close(self) -> None:
         return None
+
+
+class _EmptyUserHttp(_FakeHttp):
+    def request(self, method: str, path: str, **kwargs: object) -> _Response:
+        if path == "/user":
+            return _Response(200, {})
+        return super().request(method, path, **kwargs)
 
 
 class _FakeLambdaHttp:

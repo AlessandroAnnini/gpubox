@@ -154,8 +154,7 @@ class LambdaCloud:
             storage = itype.get("specs", {}).get("storage_gib") if isinstance(itype.get("specs"), dict) else None
             if q.min_disk_gb is not None and storage is not None and float(storage) < q.min_disk_gb:
                 continue
-            cents = itype.get("price_cents_per_hour")
-            price = float(cents) / 100 if cents is not None else 0.0
+            price = _cents_to_hours(itype.get("price_cents_per_hour")) or 0.0
             ram = None
             specs = itype.get("specs") if isinstance(itype.get("specs"), dict) else {}
             if specs.get("memory_gib") is not None:
@@ -277,5 +276,5 @@ class LambdaCloud:
     def _ssh_key(self) -> Path:
         key = self.config.ssh_key
         if key is None:
-            key = Path.home() / ".ssh" / "id_rsa"
+            key = Path.home() / ".ssh" / "id_ed25519"
         return key

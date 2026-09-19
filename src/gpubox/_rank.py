@@ -6,6 +6,12 @@ from collections.abc import Sequence
 from gpubox._models import Offer
 
 
+def _finite_or_zero(value: float | None) -> float:
+    if value is None or not math.isfinite(value):
+        return 0.0
+    return float(value)
+
+
 def rank_offers(
     offers: Sequence[Offer],
     *,
@@ -19,8 +25,8 @@ def rank_offers(
             return math.inf
         return (
             price_weight * price
-            - reliability_weight * (offer.reliability or 0)
-            - disk_weight * (offer.disk_space or 0)
+            - reliability_weight * _finite_or_zero(offer.reliability)
+            - disk_weight * _finite_or_zero(offer.disk_space)
         )
 
     return sorted(offers, key=score)

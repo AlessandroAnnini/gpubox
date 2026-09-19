@@ -55,6 +55,18 @@ def test_missing_reliability_and_disk_count_as_zero() -> None:
     assert [o.id for o in ranked] == ["known", "bare"]
 
 
+def test_non_finite_reliability_and_disk_count_as_zero() -> None:
+    ranked = rank_offers(
+        [
+            _offer("nan", price=0.30, reliability=math.nan, disk=math.inf),
+            _offer("known", price=0.30, reliability=0.8, disk=100),
+        ],
+        reliability_weight=1.0,
+        disk_weight=0.01,
+    )
+    assert [o.id for o in ranked] == ["known", "nan"]
+
+
 def test_non_finite_price_sorts_last() -> None:
     ranked = rank_offers(
         [
