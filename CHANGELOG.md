@@ -1,11 +1,5 @@
 # Changelog
 
-
-## [0.7.3] - 2026-09-19
-
-### Added
-
-- Feature `launch-polish-human-changelog-thin-readme-fakecl` shipped to develop.
 All notable changes to this project are documented here.
 
 ## [0.7.3] - 2026-09-19
