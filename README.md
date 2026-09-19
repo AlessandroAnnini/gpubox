@@ -34,7 +34,7 @@ cloud.run(box, "nvidia-smi")
 cloud.destroy(box)
 ```
 
-`rank_offers` is arithmetic on one provider list. Lower score wins (`price` minus weighted `reliability` and `disk_space`). It is not a Protocol method and does not merge clouds.
+`rank_offers` is arithmetic on one provider list. Score is `price_weight * price_per_hour - reliability_weight * (reliability or 0) - disk_weight * (disk_space or 0)`; lower wins; non-finite price last. It is not a Protocol method and does not merge clouds.
 
 `wait_until_ssh` and `ssh_is_open` are helpers. They are not methods on `GpuCloud`.
 
