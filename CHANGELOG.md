@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [0.5.1] - 2026-09-19
+
+### Added
+
+- Feature `gpubox-public` shipped to develop.
+
 ## [0.5.0] - 2026-09-19
 
 ### Added
