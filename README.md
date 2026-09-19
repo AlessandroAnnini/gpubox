@@ -8,6 +8,8 @@ Rent one GPU box, wait until SSH works, run a command, copy a file, destroy it. 
 
 Live check 2026-09-19: RunPod NVIDIA RTX A4000 at $0.17/hr; created, `nvidia-smi`, destroyed.
 
+Docs: [alessandroannini.github.io/gpubox](https://alessandroannini.github.io/gpubox/).
+
 ## Install
 
 ```bash
