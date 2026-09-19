@@ -8,6 +8,8 @@ Rent one GPU box, wait until SSH works, run a command, copy a file, destroy it. 
 
 Live check 2026-09-19: RunPod NVIDIA RTX A4000 at $0.17/hr; created, `nvidia-smi`, destroyed.
 
+Smoke-test an offer, run a command you already have, or copy a file up and back. Details: [when to use it](https://alessandroannini.github.io/gpubox/#when).
+
 Docs: [alessandroannini.github.io/gpubox](https://alessandroannini.github.io/gpubox/).
 
 ## Install
@@ -21,9 +23,9 @@ PyPI is later, on purpose. From a checkout: `uv sync --extra vast` or `uv sync -
 
 ```bash
 gpubox --version
-gpubox list -p vast --gpu RTX_4090 --rank
-gpubox rent -p vast --gpu RTX_4090 --cmd nvidia-smi
 gpubox list -p runpod --gpu "NVIDIA RTX A4000" --raw COMMUNITY --rank
+gpubox rent -p runpod --gpu "NVIDIA RTX A4000" --cmd nvidia-smi
+gpubox list -p vast --gpu RTX_4090 --rank
 ```
 
 `rent` ranks, takes the first offer, then always destroys. Keys come from `VAST_API_KEY` / `RUNPOD_API_KEY` / `LAMBDA_API_KEY` or `--api-key`. RunPod and Lambda SSH keys come from `--ssh-key` or `RUNPOD_SSH_KEY` / `LAMBDA_SSH_KEY`.
