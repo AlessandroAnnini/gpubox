@@ -68,7 +68,25 @@ assert isinstance(cloud, FakeCloud)
 
 ## Again as a caller
 
-Again should build `LaunchSpec` from its own settings. If it still wants `/workspace/READY` or a 4-hour kill switch, pass those in `start_command` and `max_hours`. The library will not write READY or apply boot-watch timers. `status()` reports provider state plus `ssh_open`. It has no `ready` field. Map `Instance.ssh_open` plus your own probe onto studio phases.
+Again keeps studio phases (`warming`, READY file, stuck-after-pull). It builds a `LaunchSpec` from its settings and maps `Instance` plus its own READY probe onto `Studio`. Boot classification stays in Again, fed by `status()` and `logs()`.
+
+```python
+from gpubox import LaunchSpec
+
+spec = LaunchSpec(
+    image=settings.application_image,
+    disk_gb=settings.application_disk_gb,
+    label=settings.application_instance_label,
+    start_command="mkdir -p /workspace && echo ready > /workspace/READY",
+    max_hours=4,
+)
+box = cloud.create(offer_id, spec)
+inst = cloud.status(box)
+# Again: ssh_open + SSH probe for /workspace/READY -> studio phase
+# Again: never expect inst.ready; that field does not exist
+```
+
+The library will not write READY, mkdir a workspace, or apply boot-watch timers unless the caller passed them in `LaunchSpec`.
 
 ## Tests
 
