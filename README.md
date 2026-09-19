@@ -2,11 +2,11 @@
 
 Rent one GPU box, wait until SSH works, run a command, copy a file, destroy it. The caller owns the job.
 
-This is the product tree for the Prime studio at `~/Projects/gpubox-studio`. Program notes live in `../brief/` and `../memory/`.
-
-The public API is 0.x. Pin it from `VERSION` (also the hatch version). Do not publish to PyPI until a second consumer exists (Again path pin or a CLI).
+MIT licensed. The public API is 0.x. Pin it from `VERSION` (also the hatch version). Do not publish to PyPI until a second consumer exists.
 
 ## Install
+
+From a checkout:
 
 ```bash
 uv sync --extra vast
@@ -87,32 +87,30 @@ assert isinstance(cloud, FakeCloud)
 - `SshNotReady` — SSH host/port not published, or banner not up
 - `ProviderError` — other vendor failure (`provider`, `status_code`, `detail`)
 
-## Again as a caller
+## Caller owns the job
 
-Again keeps studio phases (`warming`, READY file, stuck-after-pull). It builds a `LaunchSpec` from its settings and maps `Instance` plus its own READY probe onto `Studio`. Boot classification stays in Again, fed by `status()` and `logs()`.
+`status()` reports provider state plus `ssh_open`. It never reads or writes `/workspace/READY`. Boot-watch timers and workspace probes stay in the caller. The library will not write READY, mkdir a workspace, or apply those timers unless the caller passed them in `LaunchSpec`.
 
 ```python
 from gpubox import LaunchSpec
 
 spec = LaunchSpec(
-    image=settings.application_image,
-    disk_gb=settings.application_disk_gb,
-    label=settings.application_instance_label,
+    image="ubuntu:22.04",
+    disk_gb=50,
+    label="box",
     start_command="mkdir -p /workspace && echo ready > /workspace/READY",
     max_hours=4,
 )
 box = cloud.create(offer_id, spec)
 inst = cloud.status(box)
-# Again: ssh_open + SSH probe for /workspace/READY -> studio phase
-# Again: never expect inst.ready; that field does not exist
+# caller: ssh_open + own READY probe
+# never expect inst.ready; that field does not exist
 ```
-
-The library will not write READY, mkdir a workspace, or apply boot-watch timers unless the caller passed them in `LaunchSpec`.
 
 ## Tests
 
 ```bash
-uv run pytest -q
+uv run --project . --directory . pytest -q
 ```
 
 Tests use `FakeCloud` and injected vendor clients. They do not rent GPUs. Live checks are opt-in only: `GPUBOX_LIVE=1`.
