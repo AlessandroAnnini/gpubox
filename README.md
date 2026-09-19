@@ -11,6 +11,14 @@ uv sync --extra vast
 # or: uv sync --extra all
 ```
 
+Extras:
+
+- `gpubox[vast]` pulls `vastai`
+- `gpubox[runpod]` is httpx (already in core)
+- `gpubox[all]` is both
+
+## Connect
+
 ```python
 from gpubox import LaunchSpec, OfferQuery, connect, wait_until_ssh
 
@@ -22,26 +30,63 @@ cloud.run(box, "nvidia-smi")
 cloud.destroy(box)
 ```
 
-RunPod is the same Protocol:
+`wait_until_ssh` and `ssh_is_open` are helpers. They are not methods on `GpuCloud`.
+
+RunPod is the same Protocol. Offer ids are SKUs of the form `gpu|SECURE` or `gpu|COMMUNITY`. GPU name strings stay in the provider's spelling. Do not treat `RTX_4090` and `NVIDIA GeForce RTX 4090` as the same id.
 
 ```python
 from pathlib import Path
-from gpubox import connect
+from gpubox import OfferQuery, connect
 
 cloud = connect(
     "runpod",
     api_key="...",
     ssh_key=Path.home() / ".runpod" / "ssh" / "runpodctl-ssh-key",
 )
+offers = cloud.list_offers(OfferQuery(gpu_names=["NVIDIA GeForce RTX 4090"]))
+# offers[0].id == "NVIDIA GeForce RTX 4090|SECURE"
 ```
 
-Extras: `gpubox[vast]` pulls `vastai`. `gpubox[runpod]` is httpx (already in core). `gpubox[all]` is both.
+Tests and local callers can skip the network:
+
+```python
+from gpubox import FakeCloud, connect
+
+cloud = connect("fake")
+assert isinstance(cloud, FakeCloud)
+```
 
 `StudioCloud` is a type alias for `GpuCloud`. Prefer `GpuCloud`.
 
+## Errors
+
+- `AuthError` — missing or rejected API key
+- `NotFound` — instance or offer is gone
+- `Unavailable` — offer cancelled or no capacity
+- `SshNotReady` — SSH host/port not published, or banner not up
+- `ProviderError` — other vendor failure (`provider`, `status_code`, `detail`)
+
 ## Again as a caller
 
-Again should build `LaunchSpec` from its own settings. If it still wants `/workspace/READY` or a 4-hour kill switch, pass those in `start_command` and `max_hours`. The library will not write READY or apply boot-watch timers. Map `Instance.ssh_open` plus your own probe onto studio phases.
+Again keeps studio phases (`warming`, READY file, stuck-after-pull). It builds a `LaunchSpec` from its settings and maps `Instance` plus its own READY probe onto `Studio`. Boot classification stays in Again, fed by `status()` and `logs()`.
+
+```python
+from gpubox import LaunchSpec
+
+spec = LaunchSpec(
+    image=settings.application_image,
+    disk_gb=settings.application_disk_gb,
+    label=settings.application_instance_label,
+    start_command="mkdir -p /workspace && echo ready > /workspace/READY",
+    max_hours=4,
+)
+box = cloud.create(offer_id, spec)
+inst = cloud.status(box)
+# Again: ssh_open + SSH probe for /workspace/READY -> studio phase
+# Again: never expect inst.ready; that field does not exist
+```
+
+The library will not write READY, mkdir a workspace, or apply boot-watch timers unless the caller passed them in `LaunchSpec`.
 
 ## Tests
 
