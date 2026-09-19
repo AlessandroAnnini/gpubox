@@ -1,3 +1,5 @@
+from importlib.metadata import version as pkg_version
+
 from gpubox._errors import (
     AuthError,
     GpuBoxError,
@@ -20,7 +22,10 @@ from gpubox._rank import rank_offers
 from gpubox._ssh import ssh_is_open, wait_until_ssh
 from gpubox.testing import FakeCloud
 
+__version__ = pkg_version("gpubox")
+
 __all__ = [
+    "__version__",
     "Account",
     "AuthError",
     "ClientConfig",

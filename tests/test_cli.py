@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from gpubox._cli import main
 from gpubox._errors import SshNotReady
 from gpubox.testing import FakeCloud
+
+
+def test_version_flag(capsys) -> None:
+    pin = (Path(__file__).resolve().parents[1] / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0].strip()
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert pin in capsys.readouterr().out
 
 
 def test_list_fake(capsys) -> None:
