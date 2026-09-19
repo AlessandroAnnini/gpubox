@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [0.6.0] - 2026-09-19
+
+### Added
+
+- Feature `gpubox-rank` shipped to develop.
+
 ## [0.5.1] - 2026-09-19
 
 ### Added
