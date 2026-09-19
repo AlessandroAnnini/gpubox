@@ -8,9 +8,17 @@ import pytest
 import gpubox
 
 
+def _pin() -> str:
+    return (Path(__file__).resolve().parents[1] / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0].strip()
+
+
 def test_package_version_matches_version_file() -> None:
-    pin = (Path(__file__).resolve().parents[1] / "VERSION").read_text(encoding="utf-8")
-    assert version("gpubox") == pin.strip().splitlines()[0].strip()
+    assert version("gpubox") == _pin()
+
+
+def test_dunder_version_matches_version_file() -> None:
+    assert gpubox.__version__ == _pin()
+    assert "__version__" in gpubox.__all__
 
 
 def test_public_export_drops_studio_aliases() -> None:

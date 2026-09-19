@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from importlib.metadata import version as pkg_version
 
 from gpubox._errors import GpuBoxError
 from gpubox._factory import connect
@@ -111,6 +112,12 @@ def cmd_destroy(args: argparse.Namespace) -> int:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gpubox")
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s {pkg_version('gpubox')}",
+    )
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("-p", "--provider", required=True)
     common.add_argument("--api-key", default=None)
