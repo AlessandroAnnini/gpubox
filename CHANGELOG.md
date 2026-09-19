@@ -2,68 +2,60 @@
 
 All notable changes to this project are documented here.
 
+## [0.7.3] - 2026-09-19
+
+### Changed
+
+- README is caller-first: hero, one example, honest provider lines, errors.
+- `MemoryCloud` and `StudioCloud` are no longer exported from `gpubox`. Use `FakeCloud` and `GpuCloud`.
+
+### Fixed
+
+- RunPod HTTP 500 with no capacity is `Unavailable`.
+- Vast create, execute, and destroy raise `ProviderError` instead of leaking vendor exceptions.
+- `gpubox rent` returns 1 and still destroys if SSH or the command fails.
+- CLI accepts `--ssh-key`, `RUNPOD_SSH_KEY` / `LAMBDA_SSH_KEY`, and `--raw`.
+
 ## [0.7.2] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-receipt` shipped to develop.
+- Documented the 2026-09-19 RunPod RTX A4000 live receipt at $0.17/hr.
 
 ## [0.7.1] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-live-test` shipped to develop.
+- Opt-in live tests (`GPUBOX_LIVE=1`) that snapshot ids and destroy only boxes we create.
 
 ## [0.7.0] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-cli` shipped to develop.
+- Added the `gpubox` CLI: list, list --rank, rent, status, destroy.
 
 ## [0.6.1] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-author` shipped to develop.
+- Public author is Alessandro Annini. MIT copyright matches.
 
 ## [0.6.0] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-rank` shipped to develop.
+- `rank_offers` is arithmetic on one provider list. It is not a Protocol method.
 
 ## [0.5.1] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-public` shipped to develop.
+- Install from `git+https://github.com/AlessandroAnnini/gpubox`. PyPI waits on purpose.
 
 ## [0.5.0] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-rank` shipped to develop.
+- First `rank_offers` sort: cheaper first; non-finite price last.
 
 ## [0.4.0] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-release` shipped to develop.
+- Pinned the public API from `VERSION` (hatch reads the same file).
 
 ## [0.3.0] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-lambda` shipped to develop.
+- Lambda Labs adapter. Offer ids are `instance_type|region`.
 
 ## [0.2.0] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-docs` shipped to develop.
+- Caller docs: connect, extras, errors, caller owns the job.
 
 ## [0.1.0] - 2026-09-19
 
-### Added
-
-- Feature `gpubox-core` shipped to develop.
+- `GpuCloud` Protocol, `connect()`, `FakeCloud`, Vast and RunPod adapters.
