@@ -3,8 +3,9 @@ name = "gpubox"
 dynamic = ["version"]
 description = "Rent one GPU box, wait until SSH works, run a command, copy a file, destroy it."
 readme = "README.md"
+license = { text = "MIT" }
 authors = [
-    { name = "Prime", email = "agentic-loop-prime@local" }
+    { name = "Alessandro Annini", email = "alessandro.annini@gmail.com" }
 ]
 requires-python = ">=3.11"
 dependencies = [

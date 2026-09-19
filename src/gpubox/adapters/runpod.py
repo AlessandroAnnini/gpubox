@@ -222,6 +222,8 @@ class RunPodCloud:
             raise
         except Exception:
             pass
+        if not self._owns_client:
+            return Account(username="runpod", credit=0, connected=True)
         data = self._graphql("{ myself { id email clientBalance } }")
         me = data.get("myself") or {}
         return Account(

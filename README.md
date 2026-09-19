@@ -81,6 +81,7 @@ assert isinstance(cloud, FakeCloud)
 
 ## Errors
 
+- `GpuBoxError` — base class for the errors below
 - `AuthError` — missing or rejected API key
 - `NotFound` — instance or offer is gone
 - `Unavailable` — offer cancelled or no capacity
@@ -110,7 +111,7 @@ inst = cloud.status(box)
 ## Tests
 
 ```bash
-uv run --project . --directory . pytest -q
+uv run --project . --directory . --reinstall-package gpubox pytest -q
 ```
 
 Tests use `FakeCloud` and injected vendor clients. They do not rent GPUs. Live checks are opt-in only: `GPUBOX_LIVE=1`.
