@@ -1,5 +1,11 @@
 # Changelog
 
+
+## [0.7.5] - 2026-09-19
+
+### Added
+
+- Feature `github-pages-caller-docs-one-foglio-html-file-at` shipped to develop.
 All notable changes to this project are documented here.
 
 ## [0.7.4] - 2026-09-19
