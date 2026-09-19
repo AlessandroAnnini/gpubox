@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [0.7.0] - 2026-09-19
+
+### Added
+
+- Feature `gpubox-cli` shipped to develop.
+
 ## [0.6.1] - 2026-09-19
 
 ### Added
