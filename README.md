@@ -18,6 +18,7 @@ uv add "gpubox[all] @ git+https://github.com/AlessandroAnnini/gpubox"
 PyPI is later, on purpose. From a checkout: `uv sync --extra vast` or `uv sync --extra all`.
 
 ```bash
+gpubox --version
 gpubox list -p vast --gpu RTX_4090 --rank
 gpubox rent -p vast --gpu RTX_4090 --cmd nvidia-smi
 gpubox list -p runpod --gpu "NVIDIA RTX A4000" --raw COMMUNITY --rank
