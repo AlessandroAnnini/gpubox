@@ -1,5 +1,11 @@
 # Changelog
 
+
+## [0.7.6] - 2026-09-19
+
+### Added
+
+- Feature `docs-excellence-when-section-three-jobs-hero-led` shipped to develop.
 All notable changes to this project are documented here.
 
 ## [0.7.5] - 2026-09-19
