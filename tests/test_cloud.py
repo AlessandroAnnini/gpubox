@@ -17,7 +17,7 @@ from gpubox import (
     Unavailable,
     connect,
 )
-from gpubox.adapters.runpod import encode_sku, parse_sku, ssh_from_pod
+from gpubox.adapters.runpod import RunPodCloud, encode_sku, parse_sku, ssh_from_pod
 from gpubox.adapters.vast import VastCloud, instance_from_row, offer_from_row
 
 
@@ -194,6 +194,41 @@ def test_vast_create_does_not_write_ready() -> None:
     assert "READY" not in client.created[0]["onstart_cmd"]
 
 
+def test_runpod_create_status_with_fake_client() -> None:
+    client = _FakeHttp()
+    cloud = RunPodCloud(ClientConfig(api_key="k"), client=client)
+    sku = encode_sku("NVIDIA GeForce RTX 4090", "SECURE")
+    box = cloud.create(sku, LaunchSpec(image="ubuntu:22.04", disk_gb=40, label="box"))
+    assert box == "pod-1"
+    assert client.created[0]["name"] == "box"
+    assert client.created[0]["imageName"] == "ubuntu:22.04"
+    assert "terminateAfter" not in client.created[0]
+    start = " ".join(client.created[0]["dockerStartCmd"])
+    assert "sshd" in start or "service ssh start" in start
+    assert "READY" not in start
+    inst = cloud.status(box)
+    assert inst.id == "pod-1"
+    assert inst.label == "box"
+    assert "ready" not in Instance.model_fields
+    found = cloud.find("box")
+    assert found is not None
+    cloud.destroy(box)
+    assert client.deleted == ["pod-1"]
+
+
+def test_runpod_create_passes_start_command_and_max_hours() -> None:
+    client = _FakeHttp()
+    cloud = RunPodCloud(ClientConfig(api_key="k"), client=client)
+    cloud.create(
+        encode_sku("NVIDIA GeForce RTX 4090", "SECURE"),
+        LaunchSpec(image="img", start_command="echo hello", max_hours=4),
+    )
+    start = " ".join(client.created[0]["dockerStartCmd"])
+    assert start.endswith("echo hello")
+    assert "READY" not in start
+    assert "terminateAfter" in client.created[0]
+
+
 def test_error_types() -> None:
     assert issubclass(AuthError, Exception)
     err = ProviderError("boom", provider="vast", status_code=500, detail="x")
@@ -272,14 +307,35 @@ class _Response:
 
 
 class _FakeHttp:
+    def __init__(self) -> None:
+        self.created: list[dict] = []
+        self.deleted: list[str] = []
+        self._pod: dict | None = None
+
     def request(self, method: str, path: str, **kwargs: object) -> _Response:
-        del method, kwargs
         if path == "/user":
             return _Response(200, {"username": "rp", "clientBalance": 3})
         if path == "/gpu-types":
             return _Response(200, [])
-        if path == "/pods":
-            return _Response(200, [])
+        if path == "/pods" and method == "POST":
+            payload = dict(kwargs.get("json") or {})
+            self.created.append(payload)
+            self._pod = {
+                "id": "pod-1",
+                "name": payload.get("name"),
+                "desiredStatus": "RUNNING",
+                "publicIp": "1.2.3.4",
+                "portMappings": {"22": 23456},
+            }
+            return _Response(200, {"id": "pod-1"})
+        if path == "/pods" and method == "GET":
+            return _Response(200, [self._pod] if self._pod else [])
+        if path == "/pods/pod-1" and method == "GET":
+            return _Response(200, self._pod or {})
+        if path == "/pods/pod-1" and method == "DELETE":
+            self.deleted.append("pod-1")
+            self._pod = None
+            return _Response(200, {})
         return _Response(200, {})
 
     def close(self) -> None:
