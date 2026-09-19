@@ -13,6 +13,13 @@ uv add "gpubox[all] @ git+https://github.com/AlessandroAnnini/gpubox"
 
 From a checkout: `uv sync --extra vast` or `uv sync --extra all`.
 
+```bash
+gpubox list -p vast --gpu RTX_4090 --rank
+gpubox rent -p vast --gpu RTX_4090 --cmd nvidia-smi
+```
+
+`rent` always destroys. Keys come from `VAST_API_KEY` / `RUNPOD_API_KEY` / `LAMBDA_API_KEY` or `--api-key`.
+
 Extras:
 
 - `gpubox[vast]` pulls `vastai`
