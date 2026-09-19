@@ -890,8 +890,9 @@
     <div class="nav-jump" id="nav-jump">
       <!-- llm-slot:nav -->
       <ul class="nav-links" id="nav-links">
-        <li><a href="#install">Install</a></li>
+        <li><a href="#when">When</a></li>
         <li><a href="#start">Start</a></li>
+        <li><a href="#install">Install</a></li>
         <li><a href="#loop">Loop</a></li>
         <li><a href="#providers">Providers</a></li>
         <li><a href="#rank">Rank</a></li>
@@ -901,8 +902,9 @@
         <li><a href="#tests">Tests</a></li>
       </ul>
       <select class="sec-select" id="sec-select" aria-label="Section">
-        <option value="#install">Install</option>
+        <option value="#when">When</option>
         <option value="#start">Start</option>
+        <option value="#install">Install</option>
         <option value="#loop">Loop</option>
         <option value="#providers">Providers</option>
         <option value="#rank">Rank</option>
@@ -952,10 +954,10 @@
     <div class="hero-inner">
       <div class="label">Python 3.11 / MIT</div>
       <h1>Rent one GPU box.<br><em>Then destroy it.</em></h1>
-      <p class="lede">Wait until SSH works, run a command, copy a file, tear the box down. The caller owns the job. Rank is arithmetic on one provider list.</p>
+      <p class="lede">You already have the command. You want one GPU for an hour. Wait until SSH works, run or copy, then destroy the box. The caller owns the job.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/AlessandroAnnini/gpubox">Source on GitHub</a>
-        <a class="btn btn-ghost" href="#install">Install</a>
+        <a class="btn btn-ghost" href="#when">When to use it</a>
       </div>
       <div class="stats">
         <div>
@@ -976,6 +978,51 @@
   </header>
 
   <!-- llm-slot:sections -->
+  <section id="when">
+    <div class="wrap">
+      <div class="label">When</div>
+      <h2>A short rent for work you <em>already</em> have</h2>
+      <p class="lede">Use gpubox when the script is yours and you need a GPU for a while, then nothing left running.</p>
+      <div class="grid-3">
+        <article class="card fade-target">
+          <h3>Smoke-test an offer</h3>
+          <p>List, rank, create, run <code>nvidia-smi</code>, destroy. Live check 2026-09-19: RunPod NVIDIA RTX A4000 at $0.17/hr. Created, ran, destroyed.</p>
+        </article>
+        <article class="card fade-target">
+          <h3>Run a command you have</h3>
+          <p>Your train script, llama.cpp, or a ComfyUI workflow. gpubox waits for SSH and tears the box down. It does not start the job for you.</p>
+        </article>
+        <article class="card fade-target">
+          <h3>Copy, run, copy back</h3>
+          <p><code>upload</code> a script or weights, <code>run</code>, <code>download</code> a log or checkpoint, <code>destroy</code>.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="start" class="alt">
+    <div class="wrap">
+      <div class="label">Start</div>
+      <h2>List, rank, create, <em>SSH</em>, run, destroy</h2>
+      <p class="lede">This is the whole product. The library does not start your training job for you.</p>
+      <pre><code>from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_ssh
+
+cloud = connect("runpod", api_key="...")
+offers = rank_offers(cloud.list_offers(OfferQuery(gpu_names=["NVIDIA RTX A4000"])))
+box = cloud.create(offers[0].id, LaunchSpec(image="ubuntu:22.04", disk_gb=50))
+wait_until_ssh(cloud, box)
+cloud.run(box, "nvidia-smi")
+cloud.destroy(box)</code></pre>
+      <pre><code>from pathlib import Path
+
+cloud.upload(box, Path("weights.gguf"), "/workspace/weights.gguf")
+cloud.run(box, "./llama-cli -m /workspace/weights.gguf -p hello")
+cloud.download(box, "/workspace/out.log", Path("out.log"))
+cloud.destroy(box)</code></pre>
+      <p class="prose"><code>uv run --project . examples/rent.py</code> runs the smoke-test loop on <code>FakeCloud</code>. No wallet. For a real box: <code>GPUBOX_PROVIDER=runpod python examples/rent.py</code>. Keys stay in the environment.</p>
+    </div>
+  </section>
+
   <section id="install">
     <div class="wrap">
       <div class="label">Install</div>
@@ -996,29 +1043,9 @@
         </tbody>
       </table>
     </div>
-  </section>
+    </section>
 
-  <section id="start" class="alt">
-    <div class="wrap">
-      <div class="label">Start</div>
-      <h2>List, rank, create, <em>SSH</em>, run, destroy</h2>
-      <p class="lede">This is the whole product. The library does not start your training job for you.</p>
-      <pre><code>from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_ssh
-
-cloud = connect("runpod", api_key="...")
-offers = rank_offers(cloud.list_offers(OfferQuery(gpu_names=["NVIDIA RTX A4000"])))
-box = cloud.create(offers[0].id, LaunchSpec(image="ubuntu:22.04", disk_gb=50))
-wait_until_ssh(cloud, box)
-cloud.run(box, "nvidia-smi")
-cloud.destroy(box)</code></pre>
-      <p class="prose"><code>uv run --project . examples/rent.py</code> runs the same loop on <code>FakeCloud</code>. No wallet. For a real box: <code>GPUBOX_PROVIDER=runpod python examples/rent.py</code>. Keys stay in the environment.</p>
-      <div class="callout">
-        <p><span class="k">Live check</span> 2026-09-19: RunPod NVIDIA RTX A4000 at $0.17/hr. Created, ran <code>nvidia-smi</code>, destroyed.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="loop">
+  <section id="loop" class="alt">
     <div class="wrap">
       <div class="label">Loop</div>
       <h2>One box at a <em>time</em></h2>
@@ -1037,9 +1064,9 @@ cloud.destroy(box)</code></pre>
       <p class="diagram-note">List offers on one provider, rank that list, create the first id, wait for SSH, run or copy, then destroy.</p>
       <p class="prose"><code>status()</code> reports provider state plus <code>ssh_open</code>. It never reads or writes <code>/workspace/READY</code>. Pass that probe in <code>LaunchSpec.start_command</code> if you want it. Boot-watch and stuck-after-pull timers stay in the caller.</p>
     </div>
-  </section>
+    </section>
 
-  <section id="providers" class="alt">
+  <section id="providers">
     <div class="wrap">
       <div class="label">Providers</div>
       <h2>Same Protocol, <em>native</em> ids</h2>
@@ -1060,12 +1087,15 @@ cloud.destroy(box)</code></pre>
       </div>
       <p class="prose"><code>connect("fake")</code> returns <code>FakeCloud</code> for tests. <code>connect("memory")</code> is the same object. Unknown names raise <code>ValueError</code>. Missing keys raise <code>AuthError</code>.</p>
       <div class="callout">
+        <p><span class="k">RunPod SSH</span> Put the public key on your RunPod account. Pass the private key path with <code>--ssh-key</code> or <code>RUNPOD_SSH_KEY</code>. A missing file is <code>AuthError</code>.</p>
+      </div>
+      <div class="callout">
         <p><span class="k">Names</span> <code>RTX_4090</code> and <code>NVIDIA GeForce RTX 4090</code> are not the same id. Do not merge lists across clouds.</p>
       </div>
     </div>
   </section>
 
-  <section id="rank">
+  <section id="rank" class="alt">
     <div class="wrap">
       <div class="label">Rank</div>
       <h2>Arithmetic on <em>one</em> list</h2>
@@ -1078,9 +1108,9 @@ cloud.destroy(box)</code></pre>
 )</code></pre>
       <p class="prose">Score is <code>price_weight * price_per_hour - reliability_weight * reliability - disk_weight * disk_space</code>. Missing or non-finite reliability and disk count as 0. Non-finite price sorts last. Lower score wins. The sort is stable. Defaults rank by price only.</p>
     </div>
-  </section>
+    </section>
 
-  <section id="api" class="alt">
+  <section id="api">
     <div class="wrap">
       <div class="label">API</div>
       <h2>Public names on <em>gpubox</em></h2>
@@ -1117,9 +1147,9 @@ cloud.destroy(box)</code></pre>
       </table>
       <p class="prose"><code>connect(provider, api_key="", ssh_key=None, timeout=30, client=None)</code>. Pass <code>client</code> only in tests. <code>Offer.dph_total</code> and <code>Instance.dph_total</code> alias <code>price_per_hour</code>.</p>
     </div>
-  </section>
+    </section>
 
-  <section id="cli">
+  <section id="cli" class="alt">
     <div class="wrap">
       <div class="label">CLI</div>
       <h2>A thin wrapper around the <em>same</em> loop</h2>
@@ -1142,9 +1172,9 @@ gpubox destroy -p runpod INSTANCE_ID</code></pre>
       </table>
       <p class="prose">Shared flags: <code>-p/--provider</code>, <code>--api-key</code>, <code>--ssh-key</code>. Keys also come from <code>VAST_API_KEY</code>, <code>RUNPOD_API_KEY</code>, <code>LAMBDA_API_KEY</code>, <code>RUNPOD_SSH_KEY</code>, and <code>LAMBDA_SSH_KEY</code>. <code>rent</code> defaults: image <code>ubuntu:22.04</code>, disk 16 GB, timeout 300s, command <code>nvidia-smi</code>. If SSH or the command fails, it still destroys and exits 1.</p>
     </div>
-  </section>
+    </section>
 
-  <section id="errors" class="alt">
+  <section id="errors">
     <div class="wrap">
       <div class="label">Errors</div>
       <h2>One base class, <em>typed</em> failures</h2>
@@ -1163,9 +1193,9 @@ gpubox destroy -p runpod INSTANCE_ID</code></pre>
         </tbody>
       </table>
     </div>
-  </section>
+    </section>
 
-  <section id="tests">
+  <section id="tests" class="alt">
     <div class="wrap">
       <div class="label">Tests</div>
       <h2>FakeCloud by default, live only with a <em>flag</em></h2>
@@ -1176,7 +1206,7 @@ gpubox destroy -p runpod INSTANCE_ID</code></pre>
         <p><span class="k">Secrets</span> Copy <code>.env.example</code> for local keys. Never commit <code>.env</code>. The library does not hold your cloud wallet.</p>
       </div>
     </div>
-  </section>
+    </section>
   <!-- /llm-slot:sections -->
 
   <!-- llm-slot:footer -->
