@@ -15,7 +15,8 @@ Extras:
 
 - `gpubox[vast]` pulls `vastai`
 - `gpubox[runpod]` is httpx (already in core)
-- `gpubox[all]` is both
+- `gpubox[lambda]` is httpx (already in core)
+- `gpubox[all]` is all three
 
 ## Connect
 
@@ -45,6 +46,21 @@ cloud = connect(
 )
 offers = cloud.list_offers(OfferQuery(gpu_names=["NVIDIA GeForce RTX 4090"]))
 # offers[0].id == "NVIDIA GeForce RTX 4090|SECURE"
+```
+
+Lambda is the same Protocol. Offer ids are SKUs of the form `instance_type|region`. GPU names stay in Lambda's `gpu_description` spelling. SSH user is `ubuntu`. `disk_gb` and `max_hours` are not Lambda API fields.
+
+```python
+from pathlib import Path
+from gpubox import LaunchSpec, OfferQuery, connect
+
+cloud = connect("lambda", api_key="...", ssh_key=Path.home() / ".ssh" / "id_ed25519")
+offers = cloud.list_offers(OfferQuery(gpu_names=["A100 SXM4"], raw="us-west-1"))
+# offers[0].id == "gpu_1x_a100|us-west-1"
+box = cloud.create(
+    offers[0].id,
+    LaunchSpec(image="ubuntu-lts", label="box", extra={"ssh_key_name": "gpubox"}),
+)
 ```
 
 Tests and local callers can skip the network:

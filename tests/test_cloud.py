@@ -17,6 +17,9 @@ from gpubox import (
     Unavailable,
     connect,
 )
+from gpubox.adapters.lambdalabs import LambdaCloud
+from gpubox.adapters.lambdalabs import encode_sku as encode_lambda_sku
+from gpubox.adapters.lambdalabs import parse_sku as parse_lambda_sku
 from gpubox.adapters.runpod import RunPodCloud, encode_sku, parse_sku, ssh_from_pod
 from gpubox.adapters.vast import VastCloud, instance_from_row, offer_from_row
 
@@ -43,7 +46,17 @@ def test_connect_selects_vast() -> None:
 
 def test_connect_unknown() -> None:
     with pytest.raises(ValueError, match="unknown provider"):
-        connect("lambda", api_key="x")
+        connect("shadeform", api_key="x")
+
+
+def test_connect_selects_lambda() -> None:
+    cloud = connect("lambda", api_key="lam-test", client=_FakeLambdaHttp())
+    assert type(cloud).__name__ == "LambdaCloud"
+
+
+def test_connect_lambda_requires_key() -> None:
+    with pytest.raises(AuthError):
+        connect("lambda", api_key="")
 
 
 def test_vast_missing_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -229,6 +242,51 @@ def test_runpod_create_passes_start_command_and_max_hours() -> None:
     assert "terminateAfter" in client.created[0]
 
 
+def test_lambda_sku_parse() -> None:
+    sku = encode_lambda_sku("gpu_1x_a100", "us-west-1")
+    assert sku == "gpu_1x_a100|us-west-1"
+    kind, region = parse_lambda_sku(sku)
+    assert kind == "gpu_1x_a100"
+    assert region == "us-west-1"
+
+
+def test_lambda_list_create_status_with_fake_client() -> None:
+    client = _FakeLambdaHttp()
+    cloud = LambdaCloud(ClientConfig(api_key="k"), client=client)
+    offers = cloud.list_offers(OfferQuery(gpu_names=["A100 SXM4"]))
+    assert offers[0].id == "gpu_1x_a100|us-west-1"
+    assert offers[0].gpu_name == "A100 SXM4"
+    box = cloud.create(
+        offers[0].id,
+        LaunchSpec(image="ubuntu-lts", label="box", extra={"ssh_key_name": "gpubox"}),
+    )
+    assert box == "inst-1"
+    assert client.launched[0]["instance_type_name"] == "gpu_1x_a100"
+    assert client.launched[0]["region_name"] == "us-west-1"
+    assert client.launched[0]["image"] == {"family": "ubuntu-lts"}
+    assert "user_data" not in client.launched[0]
+    inst = cloud.status(box)
+    assert inst.id == "inst-1"
+    assert inst.label == "box"
+    assert "ready" not in Instance.model_fields
+    found = cloud.find("box")
+    assert found is not None
+    cloud.destroy(box)
+    assert client.terminated == ["inst-1"]
+
+
+def test_lambda_create_passes_start_command() -> None:
+    client = _FakeLambdaHttp()
+    cloud = LambdaCloud(ClientConfig(api_key="k"), client=client)
+    cloud.create(
+        encode_lambda_sku("gpu_1x_a100", "us-west-1"),
+        LaunchSpec(image="ubuntu-lts", start_command="echo hello"),
+    )
+    user_data = client.launched[0]["user_data"]
+    assert "echo hello" in user_data
+    assert "READY" not in user_data
+
+
 def test_error_types() -> None:
     assert issubclass(AuthError, Exception)
     err = ProviderError("boom", provider="vast", status_code=500, detail="x")
@@ -337,6 +395,67 @@ class _FakeHttp:
             self._pod = None
             return _Response(200, {})
         return _Response(200, {})
+
+    def close(self) -> None:
+        return None
+
+
+class _FakeLambdaHttp:
+    def __init__(self) -> None:
+        self.launched: list[dict] = []
+        self.terminated: list[str] = []
+        self._row: dict | None = None
+
+    def request(self, method: str, path: str, **kwargs: object) -> _Response:
+        if path == "/ssh-keys":
+            return _Response(200, {"data": []})
+        if path == "/instance-types":
+            return _Response(
+                200,
+                {
+                    "data": {
+                        "gpu_1x_a100": {
+                            "instance_type": {
+                                "name": "gpu_1x_a100",
+                                "gpu_description": "A100 SXM4",
+                                "price_cents_per_hour": 129,
+                                "specs": {
+                                    "vcpus": 30,
+                                    "memory_gib": 200,
+                                    "storage_gib": 512,
+                                    "gpus": 1,
+                                },
+                            },
+                            "regions_with_capacity_available": [
+                                {"name": "us-west-1", "description": "California, USA"}
+                            ],
+                        }
+                    }
+                },
+            )
+        if path == "/instance-operations/launch" and method == "POST":
+            payload = dict(kwargs.get("json") or {})
+            self.launched.append(payload)
+            self._row = {
+                "id": "inst-1",
+                "name": payload.get("name"),
+                "status": "active",
+                "ip": "1.2.3.4",
+                "instance_type": {"name": payload.get("instance_type_name"), "gpu_description": "A100 SXM4"},
+                "region": {"name": payload.get("region_name")},
+            }
+            return _Response(200, {"data": {"instance_ids": ["inst-1"]}})
+        if path == "/instances" and method == "GET":
+            return _Response(200, {"data": [self._row] if self._row else []})
+        if path == "/instances/inst-1" and method == "GET":
+            return _Response(200, {"data": self._row or {}})
+        if path == "/instance-operations/terminate" and method == "POST":
+            payload = dict(kwargs.get("json") or {})
+            ids = payload.get("instance_ids") or []
+            self.terminated.extend(str(item) for item in ids)
+            self._row = None
+            return _Response(200, {"data": {}})
+        return _Response(200, {"data": {}})
 
     def close(self) -> None:
         return None
