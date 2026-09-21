@@ -50,17 +50,19 @@ def wait_until_login(
     timeout: float = 300,
     interval: float = 2,
 ) -> Instance:
-    """Wait for banner, then poll `ssh … true`. Returns Instance. Not a Protocol method."""
-    wait_until_ssh(cloud, instance_id, timeout=timeout, interval=interval)
+    """Wait for banner, then poll `ssh … true`. One timeout window. Not a Protocol method."""
     deadline = time.monotonic() + timeout
+    wait_until_ssh(cloud, instance_id, timeout=timeout, interval=interval)
     last: Instance | None = None
-    while time.monotonic() < deadline:
+    while True:
         last = cloud.status(instance_id)
         try:
             cloud.run(instance_id, "true")
         except AuthError:
             raise
         except ProviderError:
+            if time.monotonic() >= deadline:
+                break
             time.sleep(interval)
             continue
         return last
@@ -100,10 +102,14 @@ def _raise_ssh_failure(detail: str, *, provider: str) -> None:
     text = (detail or "").strip() or "ssh failed"
     lowered = text.lower()
     if "permission denied" in lowered or "publickey" in lowered:
-        raise AuthError(
-            f"{provider}: SSH login failed (public key). The instance is already running. "
+        hint = (
             "Add the matching .pub to the provider account (RunPod: account SSH keys, "
             "not RUNPOD_SSH_KEY) and retry."
+            if str(provider).strip().lower() == "runpod"
+            else "Add the matching .pub to the provider account and retry."
+        )
+        raise AuthError(
+            f"{provider}: SSH login failed (public key). The instance is already running. {hint}"
         )
     raise ProviderError(text, provider=provider)
 

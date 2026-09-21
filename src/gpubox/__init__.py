@@ -20,8 +20,18 @@ from gpubox._models import (
 from gpubox._protocol import GpuCloud
 from gpubox._rank import rank_offers
 from gpubox._ssh import ssh_is_open, wait_until_login, wait_until_ssh
-from gpubox.adapters.runpod import ensure_ssh_key
 from gpubox.testing import FakeCloud
+
+
+def ensure_ssh_key(cloud: object, pub_path: object = None) -> str:
+    """RunPod-only. Lazy-imports the adapter. Not a GpuCloud method."""
+    from pathlib import Path
+
+    from gpubox.adapters.runpod import ensure_ssh_key as _impl
+
+    path = Path(pub_path) if pub_path is not None else None
+    return _impl(cloud, pub_path=path)
+
 
 __version__ = pkg_version("gpubox")
 

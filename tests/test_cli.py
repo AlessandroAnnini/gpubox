@@ -47,7 +47,7 @@ def test_rent_returns_1_and_destroys_on_ssh_fail(monkeypatch, capsys) -> None:
         raise SshNotReady("no ssh")
 
     monkeypatch.setattr("gpubox._cli.connect", lambda *_a, **_k: cloud)
-    monkeypatch.setattr("gpubox._cli.wait_until_ssh", boom)
+    monkeypatch.setattr("gpubox._cli.wait_until_login", boom)
     assert main(["rent", "-p", "fake", "--timeout", "1"]) == 1
     assert "no ssh" in capsys.readouterr().err
     assert cloud.destroyed is True

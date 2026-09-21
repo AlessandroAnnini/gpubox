@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from gpubox import LaunchSpec, Offer, OfferQuery, Unavailable, connect, rank_offers, wait_until_ssh
+from gpubox import LaunchSpec, Offer, OfferQuery, Unavailable, connect, rank_offers, wait_until_login
 
 _live = pytest.mark.skipif(
     os.environ.get("GPUBOX_LIVE") != "1",
@@ -95,7 +95,7 @@ def test_live_vast_snapshot_rent_destroy() -> None:
         )
         if box:
             created.add(box)
-            wait_until_ssh(cloud, box, timeout=300)
+            wait_until_login(cloud, box, timeout=300)
             out = cloud.run(box, "nvidia-smi")
             assert "NVIDIA" in out or "nvidia" in out.lower()
     finally:
@@ -123,7 +123,7 @@ def test_live_runpod_snapshot_rent_destroy() -> None:
         )
         if box:
             created.add(box)
-            wait_until_ssh(cloud, box, timeout=300)
+            wait_until_login(cloud, box, timeout=300)
             out = cloud.run(box, "nvidia-smi")
             assert "NVIDIA" in out or "nvidia" in out.lower()
     finally:
