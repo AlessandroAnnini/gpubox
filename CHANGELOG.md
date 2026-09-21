@@ -1,5 +1,11 @@
 # Changelog
 
+
+## [0.7.7] - 2026-09-22
+
+### Added
+
+- Feature `library-connect-reads-the-same-env-as-the-cli-em` shipped to develop.
 All notable changes to this project are documented here.
 
 ## [0.7.6] - 2026-09-19
