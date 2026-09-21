@@ -1,10 +1,31 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from gpubox._errors import AuthError
 from gpubox._models import ClientConfig
 from gpubox._protocol import GpuCloud
+
+ENV_KEYS = {
+    "vast": "VAST_API_KEY",
+    "vastai": "VAST_API_KEY",
+    "runpod": "RUNPOD_API_KEY",
+    "lambda": "LAMBDA_API_KEY",
+    "lambdalabs": "LAMBDA_API_KEY",
+}
+ENV_SSH = {
+    "runpod": "RUNPOD_SSH_KEY",
+    "lambda": "LAMBDA_SSH_KEY",
+    "lambdalabs": "LAMBDA_SSH_KEY",
+}
+
+
+def _env_value(name: str, table: dict[str, str]) -> str:
+    key = table.get(name)
+    if not key:
+        return ""
+    return (os.environ.get(key) or "").strip()
 
 
 def connect(provider: str, api_key: str = "", **kwargs: object) -> GpuCloud:
@@ -17,8 +38,12 @@ def connect(provider: str, api_key: str = "", **kwargs: object) -> GpuCloud:
         unknown = ", ".join(sorted(str(key) for key in kwargs))
         raise TypeError(f"unexpected connect() arguments: {unknown}")
 
-    key_path = Path(ssh_key) if ssh_key else None
-    config = ClientConfig(api_key=api_key, ssh_key=key_path, timeout=timeout)
+    api = (api_key or "").strip() or _env_value(name, ENV_KEYS)
+    ssh = ssh_key
+    if ssh is None or (isinstance(ssh, str) and not str(ssh).strip()):
+        ssh = _env_value(name, ENV_SSH) or None
+    key_path = Path(ssh) if ssh else None
+    config = ClientConfig(api_key=api, ssh_key=key_path, timeout=timeout)
 
     if name in {"fake", "memory"}:
         from gpubox.testing import FakeCloud
