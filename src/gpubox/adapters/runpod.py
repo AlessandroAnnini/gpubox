@@ -425,7 +425,7 @@ class RunPodCloud:
             )
         text = path.read_text().strip()
         line = text.splitlines()[0].strip() if text else ""
-        if not line or not line.startswith(("ssh-", "ecdsa-")):
+        if not line or not line.startswith(("ssh-", "ecdsa-", "sk-ssh-", "sk-ecdsa-")):
             raise AuthError(
                 f"RunPod: {path} is not an OpenSSH public key. Add the matching .pub in the "
                 "RunPod console (account SSH keys)."

@@ -361,6 +361,34 @@ def test_runpod_account_skips_graphql_when_client_injected() -> None:
     assert account.credit == 0
 
 
+def test_import_gpubox_does_not_load_runpod() -> None:
+    import subprocess
+    import sys
+
+    script = "import gpubox, sys; assert 'gpubox.adapters.runpod' not in sys.modules"
+    subprocess.check_call([sys.executable, "-c", script])
+
+
+def test_runpod_ensure_ssh_key_accepts_sk_pub(tmp_path: Path) -> None:
+    private = tmp_path / "id_ed25519_sk"
+    private.write_text("dummy-private")
+    pub = tmp_path / "id_ed25519_sk.pub"
+    pub.write_text("sk-ssh-ed25519@openssh.com AAAAC3NzaC1lZDI1NTE5AAAAIhwkey gpubox-sk\n")
+    cloud = RunPodCloud(ClientConfig(api_key="k", ssh_key=private), client=_FakeHttp())
+    calls: list[tuple[str, dict | None]] = []
+
+    def fake_graphql(query: str, variables: dict | None = None) -> dict:
+        calls.append((query, variables))
+        if "myself" in query:
+            return {"myself": {"pubKey": ""}}
+        return {"updateUserSettings": {"id": "user-1"}}
+
+    cloud._graphql = fake_graphql  # type: ignore[method-assign]
+    line = ensure_ssh_key(cloud)
+    assert line.startswith("sk-ssh-ed25519")
+    assert "updateUserSettings" in calls[1][0]
+
+
 def test_runpod_ensure_ssh_key_appends(tmp_path: Path) -> None:
     private = tmp_path / "id_ed25519"
     private.write_text("dummy-private")
