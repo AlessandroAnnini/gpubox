@@ -41,7 +41,7 @@ def test_run_scp_other_failure_is_provider_error(monkeypatch: pytest.MonkeyPatch
 
 def test_wait_until_login_returns_instance() -> None:
     cloud = FakeCloud()
-    box = cloud.create("101", LaunchSpec(label="gpubox"))
+    box = cloud.create("101", LaunchSpec(image="ubuntu:22.04", label="gpubox"))
     inst = wait_until_login(cloud, box, timeout=2, interval=0.01)
     assert inst.id == box
     assert inst.ssh_open
@@ -50,7 +50,7 @@ def test_wait_until_login_returns_instance() -> None:
 
 def test_wait_until_login_auth_error_is_immediate() -> None:
     cloud = FakeCloud()
-    box = cloud.create("101", LaunchSpec(label="gpubox"))
+    box = cloud.create("101", LaunchSpec(image="ubuntu:22.04", label="gpubox"))
 
     def denied(_id: str, _cmd: str) -> str:
         raise AuthError("publickey")
@@ -62,7 +62,7 @@ def test_wait_until_login_auth_error_is_immediate() -> None:
 
 def test_wait_until_login_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     cloud = FakeCloud()
-    box = cloud.create("101", LaunchSpec(label="gpubox"))
+    box = cloud.create("101", LaunchSpec(image="ubuntu:22.04", label="gpubox"))
 
     def never(_id: str, _cmd: str) -> str:
         raise ProviderError("not ready", provider="fake")
