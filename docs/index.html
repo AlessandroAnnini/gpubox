@@ -1090,7 +1090,7 @@ cloud.destroy(box)</code></pre>
       </div>
       <p class="prose"><code>connect("fake")</code> returns <code>FakeCloud</code> for tests. <code>connect("memory")</code> is the same object. Unknown names raise <code>ValueError</code>. Missing keys raise <code>AuthError</code>.</p>
       <div class="callout">
-        <p><span class="k">RunPod SSH</span> Put the public key on the RunPod account (Settings → SSH keys). That is not <code>RUNPOD_SSH_KEY</code>. <code>RUNPOD_SSH_KEY</code> is the local private-key path. A missing file or <code>Permission denied (publickey)</code> is <code>AuthError</code> — the instance is already running.</p>
+        <p><span class="k">RunPod SSH</span> Put the public key on the RunPod account (Settings → SSH keys). That is not <code>RUNPOD_SSH_KEY</code>. <code>RUNPOD_SSH_KEY</code> is the local private-key path. <code>ensure_ssh_key(cloud)</code> reads the matching <code>.pub</code> and appends it; it does not replace the list. If the vendor call cannot append, it raises <code>AuthError</code> — add the key in the console. A missing file or <code>Permission denied (publickey)</code> is also <code>AuthError</code> — the instance is already running.</p>
       </div>
       <div class="callout">
         <p><span class="k">Names</span> <code>RTX_4090</code> and <code>NVIDIA GeForce RTX 4090</code> are not the same id. Do not merge lists across clouds.</p>
@@ -1148,7 +1148,7 @@ cloud.destroy(box)</code></pre>
           <tr><td><code>Account</code></td><td><code>username</code>, <code>email</code>, <code>credit</code>, <code>connected</code></td></tr>
         </tbody>
       </table>
-      <p class="prose"><code>connect(provider, api_key="", ssh_key=None, timeout=30, client=None)</code>. Missing or empty <code>api_key</code> / <code>ssh_key</code> fill from env. Pass <code>client</code> only in tests. Helpers: <code>wait_until_ssh</code>, <code>wait_until_login</code> (return <code>Instance</code>). <code>Offer.dph_total</code> and <code>Instance.dph_total</code> alias <code>price_per_hour</code>.</p>
+      <p class="prose"><code>connect(provider, api_key="", ssh_key=None, timeout=30, client=None)</code>. Missing or empty <code>api_key</code> / <code>ssh_key</code> fill from env. Pass <code>client</code> only in tests. Helpers: <code>wait_until_ssh</code>, <code>wait_until_login</code> (return <code>Instance</code>). <code>ensure_ssh_key(cloud)</code> is RunPod-only and not on <code>GpuCloud</code>. <code>Offer.dph_total</code> and <code>Instance.dph_total</code> alias <code>price_per_hour</code>.</p>
     </div>
     </section>
 

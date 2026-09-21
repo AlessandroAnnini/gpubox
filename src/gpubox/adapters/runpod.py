@@ -179,19 +179,22 @@ class RunPodCloud:
             return None
         return response.json()
 
-    def _graphql(self, query: str) -> dict[str, Any]:
+    def _graphql(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self._owns_client:
             raise ProviderError(
                 "RunPod GraphQL is skipped when an HTTP client is injected.",
                 provider="runpod",
             )
+        payload: dict[str, Any] = {"query": query}
+        if variables is not None:
+            payload["variables"] = variables
         response = httpx.post(
             GRAPHQL_URL,
             headers={
                 "Authorization": f"Bearer {self.config.api_key}",
                 "Content-Type": "application/json",
             },
-            json={"query": query},
+            json=payload,
             timeout=self.config.timeout,
         )
         if response.status_code >= 400:
@@ -412,3 +415,67 @@ class RunPodCloud:
         if key is None:
             key = Path.home() / ".runpod" / "ssh" / "runpodctl-ssh-key"
         return key
+
+    def _public_key_line(self, pub_path: Path | None = None) -> str:
+        path = Path(pub_path) if pub_path is not None else Path(str(self._ssh_key()) + ".pub")
+        if not path.is_file():
+            raise AuthError(
+                f"RunPod: missing public key at {path}. Add the matching .pub in the RunPod "
+                "console (account SSH keys). That is not RUNPOD_SSH_KEY."
+            )
+        text = path.read_text().strip()
+        line = text.splitlines()[0].strip() if text else ""
+        if not line or not line.startswith(("ssh-", "ecdsa-")):
+            raise AuthError(
+                f"RunPod: {path} is not an OpenSSH public key. Add the matching .pub in the "
+                "RunPod console (account SSH keys)."
+            )
+        return line
+
+    def ensure_ssh_key(self, pub_path: Path | None = None) -> str:
+        """Append the local .pub to the RunPod account. Does not replace existing keys."""
+        line = self._public_key_line(pub_path)
+        try:
+            data = self._graphql("{ myself { pubKey } }")
+        except ProviderError as exc:
+            raise AuthError(
+                "RunPod: could not read account SSH keys. Add the matching .pub in the RunPod "
+                "console (account SSH keys). That is not RUNPOD_SSH_KEY."
+            ) from exc
+        existing = str((data.get("myself") or {}).get("pubKey") or "")
+        if _pub_already_present(existing, line):
+            return line
+        merged = existing.strip()
+        merged = f"{merged}\n\n{line}" if merged else line
+        try:
+            self._graphql(
+                "mutation Mutation($input: UpdateUserSettingsInput) { "
+                "updateUserSettings(input: $input) { id } }",
+                {"input": {"pubKey": merged}},
+            )
+        except ProviderError as exc:
+            raise AuthError(
+                "RunPod: could not append the account SSH key. Add the matching .pub in the "
+                "RunPod console (account SSH keys). That is not RUNPOD_SSH_KEY."
+            ) from exc
+        return line
+
+
+def _pub_already_present(existing: str, line: str) -> bool:
+    wanted = line.split()[1] if len(line.split()) > 1 else line.strip()
+    for raw in existing.splitlines():
+        row = raw.strip()
+        if not row:
+            continue
+        if row == line or (len(row.split()) > 1 and row.split()[1] == wanted):
+            return True
+    return False
+
+
+def ensure_ssh_key(cloud: object, pub_path: Path | None = None) -> str:
+    """RunPod-only. Not a GpuCloud method."""
+    if not isinstance(cloud, RunPodCloud):
+        raise AuthError(
+            "ensure_ssh_key is RunPod-only. Add the matching .pub in the provider console."
+        )
+    return cloud.ensure_ssh_key(pub_path=pub_path)

@@ -20,6 +20,7 @@ from gpubox._models import (
 from gpubox._protocol import GpuCloud
 from gpubox._rank import rank_offers
 from gpubox._ssh import ssh_is_open, wait_until_login, wait_until_ssh
+from gpubox.adapters.runpod import ensure_ssh_key
 from gpubox.testing import FakeCloud
 
 __version__ = pkg_version("gpubox")
@@ -41,6 +42,7 @@ __all__ = [
     "SshNotReady",
     "Unavailable",
     "connect",
+    "ensure_ssh_key",
     "rank_offers",
     "ssh_is_open",
     "wait_until_login",
