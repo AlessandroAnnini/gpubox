@@ -69,7 +69,12 @@ def test_wait_until_login_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
 
     cloud.run = never  # type: ignore[method-assign]
     monkeypatch.setattr("gpubox._ssh.time.sleep", lambda _s: None)
-    ticks = iter([0.0, 0.0, 10.0])
-    monkeypatch.setattr("gpubox._ssh.time.monotonic", lambda: next(ticks, 10.0))
+    now = {"t": 0.0}
+
+    def tick() -> float:
+        now["t"] += 1.0
+        return now["t"]
+
+    monkeypatch.setattr("gpubox._ssh.time.monotonic", tick)
     with pytest.raises(SshNotReady, match="login"):
-        wait_until_login(cloud, box, timeout=5, interval=0.01)
+        wait_until_login(cloud, box, timeout=3, interval=0.01)
