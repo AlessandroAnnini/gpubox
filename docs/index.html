@@ -1005,14 +1005,16 @@
       <div class="label">Start</div>
       <h2>List, rank, create, <em>SSH</em>, run, destroy</h2>
       <p class="lede">This is the whole product. The library does not start your training job for you.</p>
-      <pre><code>from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_ssh
+      <pre><code>from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_login
 
-cloud = connect("runpod", api_key="...")
+cloud = connect("runpod")
 offers = rank_offers(cloud.list_offers(OfferQuery(gpu_names=["NVIDIA RTX A4000"])))
 box = cloud.create(offers[0].id, LaunchSpec(image="ubuntu:22.04", disk_gb=50))
-wait_until_ssh(cloud, box)
-cloud.run(box, "nvidia-smi")
-cloud.destroy(box)</code></pre>
+try:
+    inst = wait_until_login(cloud, box)
+    cloud.run(inst.id or box, "nvidia-smi")
+finally:
+    cloud.destroy(box)</code></pre>
       <pre><code>from pathlib import Path
 
 cloud.upload(box, Path("weights.gguf"), "/workspace/weights.gguf")
@@ -1049,7 +1051,7 @@ cloud.destroy(box)</code></pre>
     <div class="wrap">
       <div class="label">Loop</div>
       <h2>One box at a <em>time</em></h2>
-      <p class="lede"><code>create</code> returns an instance id. <code>wait_until_ssh</code> polls <code>status()</code> until <code>ssh_open</code> is true. It is a helper, not a Protocol method.</p>
+      <p class="lede"><code>create</code> returns an instance id (<code>str</code>). Keep that id. There is no <code>Box</code> type. <code>wait_until_ssh</code> and <code>wait_until_login</code> both return <code>Instance</code>. They are helpers, not Protocol methods.</p>
       <div class="diagram-wrap fade-target">
         <button type="button" class="diagram-expand" aria-label="Expand rent loop">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
@@ -1057,12 +1059,13 @@ cloud.destroy(box)</code></pre>
         <div class="mermaid">flowchart TD
   list["list_offers"] --> rank["rank_offers"]
   rank --> create["create"]
-  create --> wait["wait_until_ssh"]
-  wait --> run["run or copy"]
+  create --> banner["wait_until_ssh"]
+  banner --> login["wait_until_login"]
+  login --> run["run or copy"]
   run --> destroy["destroy"]</div>
       </div>
-      <p class="diagram-note">List offers on one provider, rank that list, create the first id, wait for SSH, run or copy, then destroy.</p>
-      <p class="prose"><code>status()</code> reports provider state plus <code>ssh_open</code>. It never reads or writes <code>/workspace/READY</code>. Pass that probe in <code>LaunchSpec.start_command</code> if you want it. Boot-watch and stuck-after-pull timers stay in the caller.</p>
+      <p class="diagram-note">List offers on one provider, rank that list, create the first id, wait for the banner then login, run or copy, then destroy.</p>
+      <p class="prose"><code>wait_until_ssh</code> polls <code>status()</code> until <code>ssh_open</code> is true (TCP banner <code>SSH-</code>). <code>wait_until_login</code> then polls <code>ssh … true</code>. After <code>box = cloud.create(...)</code>, keep <code>box</code> and use <code>try</code> / <code>finally: destroy</code>. <code>rent</code> still always destroys. <code>status()</code> never reads or writes <code>/workspace/READY</code>. Pass that probe in <code>LaunchSpec.start_command</code> if you want it. Boot-watch and stuck-after-pull timers stay in the caller.</p>
     </div>
     </section>
 
@@ -1070,11 +1073,11 @@ cloud.destroy(box)</code></pre>
     <div class="wrap">
       <div class="label">Providers</div>
       <h2>Same Protocol, <em>native</em> ids</h2>
-      <p class="lede"><code>connect(provider, api_key)</code> lazy-imports one adapter. GPU name strings stay in the vendor spelling.</p>
+      <p class="lede"><code>connect("runpod")</code> after <code>.env</code> is valid. Empty <code>api_key</code> or <code>ssh_key</code> means env. GPU name strings stay in the vendor spelling.</p>
       <div class="grid-3">
         <article class="card fade-target">
           <h3>RunPod <span class="badge">live</span></h3>
-          <p>SKU catalog. Offer ids are <code>gpu|SECURE</code> or <code>gpu|COMMUNITY</code>. Filter community with <code>OfferQuery(raw="COMMUNITY")</code>. SSH key from <code>ssh_key=</code> or <code>RUNPOD_SSH_KEY</code>.</p>
+          <p>SKU catalog. Offer ids are <code>gpu|SECURE</code> or <code>gpu|COMMUNITY</code>. Filter community with <code>OfferQuery(raw="COMMUNITY")</code>. Private key path: <code>ssh_key=</code> or <code>RUNPOD_SSH_KEY</code>. Put the matching <code>.pub</code> on the RunPod account.</p>
         </article>
         <article class="card fade-target">
           <h3>Vast</h3>
@@ -1087,7 +1090,7 @@ cloud.destroy(box)</code></pre>
       </div>
       <p class="prose"><code>connect("fake")</code> returns <code>FakeCloud</code> for tests. <code>connect("memory")</code> is the same object. Unknown names raise <code>ValueError</code>. Missing keys raise <code>AuthError</code>.</p>
       <div class="callout">
-        <p><span class="k">RunPod SSH</span> Put the public key on your RunPod account. Pass the private key path with <code>--ssh-key</code> or <code>RUNPOD_SSH_KEY</code>. A missing file is <code>AuthError</code>.</p>
+        <p><span class="k">RunPod SSH</span> Put the public key on the RunPod account (Settings → SSH keys). That is not <code>RUNPOD_SSH_KEY</code>. <code>RUNPOD_SSH_KEY</code> is the local private-key path. <code>ensure_ssh_key(cloud)</code> reads the matching <code>.pub</code> and appends it; it does not replace the list. If the vendor call cannot append, it raises <code>AuthError</code> — add the key in the console. A missing file or <code>Permission denied (publickey)</code> is also <code>AuthError</code> — the instance is already running.</p>
       </div>
       <div class="callout">
         <p><span class="k">Names</span> <code>RTX_4090</code> and <code>NVIDIA GeForce RTX 4090</code> are not the same id. Do not merge lists across clouds.</p>
@@ -1145,7 +1148,7 @@ cloud.destroy(box)</code></pre>
           <tr><td><code>Account</code></td><td><code>username</code>, <code>email</code>, <code>credit</code>, <code>connected</code></td></tr>
         </tbody>
       </table>
-      <p class="prose"><code>connect(provider, api_key="", ssh_key=None, timeout=30, client=None)</code>. Pass <code>client</code> only in tests. <code>Offer.dph_total</code> and <code>Instance.dph_total</code> alias <code>price_per_hour</code>.</p>
+      <p class="prose"><code>connect(provider, api_key="", ssh_key=None, timeout=30, client=None)</code>. Missing or empty <code>api_key</code> / <code>ssh_key</code> fill from env. Pass <code>client</code> only in tests. Helpers: <code>wait_until_ssh</code>, <code>wait_until_login</code> (return <code>Instance</code>). <code>ensure_ssh_key(cloud)</code> is RunPod-only and not on <code>GpuCloud</code>. <code>Offer.dph_total</code> and <code>Instance.dph_total</code> alias <code>price_per_hour</code>.</p>
     </div>
     </section>
 
@@ -1185,7 +1188,7 @@ gpubox destroy -p runpod INSTANCE_ID</code></pre>
         </thead>
         <tbody>
           <tr><td><code>GpuBoxError</code></td><td>Base class</td></tr>
-          <tr><td><code>AuthError</code></td><td>Missing or rejected API key, or missing SSH key file</td></tr>
+          <tr><td><code>AuthError</code></td><td>Missing or rejected API key, missing SSH key file, or publickey denial</td></tr>
           <tr><td><code>NotFound</code></td><td>Instance or offer is gone</td></tr>
           <tr><td><code>Unavailable</code></td><td>Offer cancelled or no capacity (RunPod HTTP 500 with no capacity is this)</td></tr>
           <tr><td><code>SshNotReady</code></td><td>SSH host or port not published, banner not up, or wait timed out</td></tr>

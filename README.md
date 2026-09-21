@@ -28,17 +28,21 @@ gpubox rent -p runpod --gpu "NVIDIA RTX A4000" --cmd nvidia-smi
 gpubox list -p vast --gpu RTX_4090 --rank
 ```
 
-`rent` ranks, takes the first offer, then always destroys. Keys come from `VAST_API_KEY` / `RUNPOD_API_KEY` / `LAMBDA_API_KEY` or `--api-key`. RunPod and Lambda SSH keys come from `--ssh-key` or `RUNPOD_SSH_KEY` / `LAMBDA_SSH_KEY`.
+`rent` ranks, takes the first offer, then always destroys. After `.env`, `connect("runpod")` is valid: API keys come from `VAST_API_KEY` / `RUNPOD_API_KEY` / `LAMBDA_API_KEY` or `--api-key`. Empty `api_key=""` means env. RunPod and Lambda private-key paths come from `--ssh-key` or `RUNPOD_SSH_KEY` / `LAMBDA_SSH_KEY`. The matching `.pub` must already be on the provider account (RunPod: account SSH keys — that is not `RUNPOD_SSH_KEY`). `ensure_ssh_key(cloud)` appends that `.pub` on RunPod only; it does not replace existing keys. If the vendor call cannot append, add the key in the RunPod console.
+
+`wait_until_ssh` is the TCP banner (`ssh_open`). `wait_until_login` then polls `ssh … true`. Both return `Instance` (`id`, `ssh_host`, `ssh_port`, `ssh_open`). There is no `Box` type; `create` stays `str`. Keep that id and `try` / `finally: destroy`. `rent` still always destroys.
 
 ```python
-from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_ssh
+from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_login
 
-cloud = connect("vast", api_key="...")
-offers = rank_offers(cloud.list_offers(OfferQuery(gpu_names=["RTX_4090"])))
+cloud = connect("runpod")
+offers = rank_offers(cloud.list_offers(OfferQuery(gpu_names=["NVIDIA RTX A4000"])))
 box = cloud.create(offers[0].id, LaunchSpec(image="ubuntu:22.04", disk_gb=50))
-wait_until_ssh(cloud, box)
-cloud.run(box, "nvidia-smi")
-cloud.destroy(box)
+try:
+    inst = wait_until_login(cloud, box)
+    cloud.run(inst.id or box, "nvidia-smi")
+finally:
+    cloud.destroy(box)
 ```
 
 `uv run --project . examples/rent.py` does the same loop on `FakeCloud` (no wallet).
@@ -56,10 +60,10 @@ cloud.destroy(box)
 ## Errors
 
 - `GpuBoxError` — base class for the errors below
-- `AuthError` — missing or rejected API key
+- `AuthError` — missing or rejected API key, missing SSH key file, or publickey denial
 - `NotFound` — instance or offer is gone
 - `Unavailable` — offer cancelled or no capacity
-- `SshNotReady` — SSH host or port not published, or banner not up
+- `SshNotReady` — SSH host or port not published, banner not up, or login wait timed out
 - `ProviderError` — other vendor failure (`provider`, `status_code`, `detail`)
 
 ## Provider quirks

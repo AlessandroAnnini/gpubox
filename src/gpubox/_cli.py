@@ -7,29 +7,16 @@ from collections.abc import Sequence
 from importlib.metadata import version as pkg_version
 
 from gpubox._errors import GpuBoxError
-from gpubox._factory import connect
+from gpubox._factory import ENV_KEYS, ENV_SSH, connect
 from gpubox._models import LaunchSpec, OfferQuery
 from gpubox._rank import rank_offers
 from gpubox._ssh import wait_until_ssh
-
-_ENV_KEYS = {
-    "vast": "VAST_API_KEY",
-    "vastai": "VAST_API_KEY",
-    "runpod": "RUNPOD_API_KEY",
-    "lambda": "LAMBDA_API_KEY",
-    "lambdalabs": "LAMBDA_API_KEY",
-}
-_ENV_SSH = {
-    "runpod": "RUNPOD_SSH_KEY",
-    "lambda": "LAMBDA_SSH_KEY",
-    "lambdalabs": "LAMBDA_SSH_KEY",
-}
 
 
 def _api_key(provider: str, explicit: str | None) -> str:
     if explicit:
         return explicit
-    env = _ENV_KEYS.get(provider.strip().lower())
+    env = ENV_KEYS.get(provider.strip().lower())
     if env:
         return os.environ.get(env, "")
     return ""
@@ -39,7 +26,7 @@ def _ssh_key(args: argparse.Namespace) -> str | None:
     explicit = getattr(args, "ssh_key", None)
     if explicit:
         return str(explicit)
-    env = _ENV_SSH.get(args.provider.strip().lower())
+    env = ENV_SSH.get(args.provider.strip().lower())
     if env:
         return os.environ.get(env) or None
     return None

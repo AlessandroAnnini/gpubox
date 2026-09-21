@@ -43,6 +43,33 @@ def wait_until_ssh(
     )
 
 
+def wait_until_login(
+    cloud: GpuCloud,
+    instance_id: str,
+    *,
+    timeout: float = 300,
+    interval: float = 2,
+) -> Instance:
+    """Wait for banner, then poll `ssh … true`. Returns Instance. Not a Protocol method."""
+    wait_until_ssh(cloud, instance_id, timeout=timeout, interval=interval)
+    deadline = time.monotonic() + timeout
+    last: Instance | None = None
+    while time.monotonic() < deadline:
+        last = cloud.status(instance_id)
+        try:
+            cloud.run(instance_id, "true")
+        except AuthError:
+            raise
+        except ProviderError:
+            time.sleep(interval)
+            continue
+        return last
+    raise SshNotReady(
+        f"SSH login did not succeed for {instance_id} within {timeout:.0f}s"
+        + (f" (status={last.provider_status})" if last else "")
+    )
+
+
 def require_ssh_key(key: Path, provider: str) -> Path:
     if not key.is_file():
         raise AuthError(f"{provider} SSH key missing at {key}")
@@ -69,6 +96,18 @@ def ssh_options(key: Path, port: int, provider: str = "SSH") -> list[str]:
     ]
 
 
+def _raise_ssh_failure(detail: str, *, provider: str) -> None:
+    text = (detail or "").strip() or "ssh failed"
+    lowered = text.lower()
+    if "permission denied" in lowered or "publickey" in lowered:
+        raise AuthError(
+            f"{provider}: SSH login failed (public key). The instance is already running. "
+            "Add the matching .pub to the provider account (RunPod: account SSH keys, "
+            "not RUNPOD_SSH_KEY) and retry."
+        )
+    raise ProviderError(text, provider=provider)
+
+
 def run_ssh(key: Path, host: str, port: int, user: str, command: str, *, provider: str) -> str:
     result = subprocess.run(
         ["ssh", *ssh_options(key, port, provider), f"{user}@{host}", command],
@@ -78,10 +117,7 @@ def run_ssh(key: Path, host: str, port: int, user: str, command: str, *, provide
         check=False,
     )
     if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "ssh failed").strip(),
-            provider=provider,
-        )
+        _raise_ssh_failure(result.stderr or result.stdout or "ssh failed", provider=provider)
     return result.stdout
 
 
@@ -113,7 +149,4 @@ def run_scp(key: Path, host: str, port: int, src: str, dst: str, *, provider: st
         check=False,
     )
     if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "scp failed").strip(),
-            provider=provider,
-        )
+        _raise_ssh_failure(result.stderr or result.stdout or "scp failed", provider=provider)

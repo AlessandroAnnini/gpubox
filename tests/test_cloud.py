@@ -21,7 +21,7 @@ from gpubox.adapters.lambdalabs import LambdaCloud
 from gpubox.adapters.lambdalabs import encode_sku as encode_lambda_sku
 from gpubox.adapters.lambdalabs import instance_from_row as lambda_instance_from_row
 from gpubox.adapters.lambdalabs import parse_sku as parse_lambda_sku
-from gpubox.adapters.runpod import RunPodCloud, encode_sku, parse_sku, ssh_from_pod
+from gpubox.adapters.runpod import RunPodCloud, encode_sku, ensure_ssh_key, parse_sku, ssh_from_pod
 from gpubox.adapters.vast import VastCloud, instance_from_row, offer_from_row
 
 
@@ -42,9 +42,24 @@ def test_connect_selects_runpod() -> None:
     assert type(cloud).__name__ == "RunPodCloud"
 
 
-def test_connect_runpod_requires_key() -> None:
+def test_connect_runpod_requires_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("RUNPOD_API_KEY", raising=False)
     with pytest.raises(AuthError):
         connect("runpod", api_key="")
+
+
+def test_connect_runpod_reads_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    key = tmp_path / "id_ed25519"
+    key.write_text("dummy")
+    monkeypatch.setenv("RUNPOD_API_KEY", "rp-from-env")
+    monkeypatch.setenv("RUNPOD_SSH_KEY", str(key))
+    cloud = connect("runpod", client=_FakeHttp())
+    assert type(cloud).__name__ == "RunPodCloud"
+    assert cloud.config.api_key == "rp-from-env"
+    assert cloud.config.ssh_key == key
+    empty = connect("runpod", api_key="", ssh_key="", client=_FakeHttp())
+    assert empty.config.api_key == "rp-from-env"
+    assert empty.config.ssh_key == key
 
 
 def test_connect_selects_vast() -> None:
@@ -52,9 +67,18 @@ def test_connect_selects_vast() -> None:
     assert isinstance(cloud, VastCloud)
 
 
-def test_connect_vast_requires_key() -> None:
+def test_connect_vast_requires_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("VAST_API_KEY", raising=False)
     with pytest.raises(AuthError):
         connect("vast", api_key="")
+
+
+def test_connect_vast_reads_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VAST_API_KEY", "vast-from-env")
+    cloud = connect("vast", client=_FakeVast())
+    assert isinstance(cloud, VastCloud)
+    empty = connect("vast", api_key="", client=_FakeVast())
+    assert empty.config.api_key == "vast-from-env"
 
 
 def test_connect_unknown() -> None:
@@ -67,9 +91,21 @@ def test_connect_selects_lambda() -> None:
     assert type(cloud).__name__ == "LambdaCloud"
 
 
-def test_connect_lambda_requires_key() -> None:
+def test_connect_lambda_requires_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LAMBDA_API_KEY", raising=False)
     with pytest.raises(AuthError):
         connect("lambda", api_key="")
+
+
+def test_connect_lambda_reads_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    key = tmp_path / "id_ed25519"
+    key.write_text("dummy")
+    monkeypatch.setenv("LAMBDA_API_KEY", "lam-from-env")
+    monkeypatch.setenv("LAMBDA_SSH_KEY", str(key))
+    cloud = connect("lambda", client=_FakeLambdaHttp())
+    assert type(cloud).__name__ == "LambdaCloud"
+    assert cloud.config.api_key == "lam-from-env"
+    assert cloud.config.ssh_key == key
 
 
 def test_vast_missing_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -323,6 +359,54 @@ def test_runpod_account_skips_graphql_when_client_injected() -> None:
     account = cloud.account()
     assert account.connected is True
     assert account.credit == 0
+
+
+def test_runpod_ensure_ssh_key_appends(tmp_path: Path) -> None:
+    private = tmp_path / "id_ed25519"
+    private.write_text("dummy-private")
+    pub = tmp_path / "id_ed25519.pub"
+    pub.write_text("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItestkey gpubox-test\n")
+    cloud = RunPodCloud(ClientConfig(api_key="k", ssh_key=private), client=_FakeHttp())
+    calls: list[tuple[str, dict | None]] = []
+
+    def fake_graphql(query: str, variables: dict | None = None) -> dict:
+        calls.append((query, variables))
+        if "myself" in query:
+            return {"myself": {"pubKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIoldkey old"}}
+        return {"updateUserSettings": {"id": "user-1"}}
+
+    cloud._graphql = fake_graphql  # type: ignore[method-assign]
+    line = ensure_ssh_key(cloud)
+    assert "Itestkey" in line
+    assert len(calls) == 2
+    assert "updateUserSettings" in calls[1][0]
+    merged = (calls[1][1] or {})["input"]["pubKey"]
+    assert "Ioldkey" in merged
+    assert "Itestkey" in merged
+
+
+def test_runpod_ensure_ssh_key_skips_duplicate(tmp_path: Path) -> None:
+    private = tmp_path / "id_ed25519"
+    private.write_text("dummy-private")
+    pub = tmp_path / "id_ed25519.pub"
+    pub.write_text("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItestkey gpubox-test\n")
+    cloud = RunPodCloud(ClientConfig(api_key="k", ssh_key=private), client=_FakeHttp())
+    calls: list[str] = []
+
+    def fake_graphql(query: str, variables: dict | None = None) -> dict:
+        del variables
+        calls.append(query)
+        return {"myself": {"pubKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItestkey other-comment"}}
+
+    cloud._graphql = fake_graphql  # type: ignore[method-assign]
+    ensure_ssh_key(cloud)
+    assert len(calls) == 1
+    assert "updateUserSettings" not in calls[0]
+
+
+def test_ensure_ssh_key_rejects_non_runpod() -> None:
+    with pytest.raises(AuthError, match="RunPod-only"):
+        ensure_ssh_key(FakeCloud())
 
 
 def test_runpod_capacity_500_is_unavailable() -> None:
