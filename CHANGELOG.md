@@ -1,5 +1,11 @@
 # Changelog
 
+
+## [0.7.8] - 2026-09-22
+
+### Added
+
+- Feature `fix-wait-until-login-to-one-timeout-window-not-b` shipped to develop.
 All notable changes to this project are documented here.
 
 ## [0.7.7] - 2026-09-22
