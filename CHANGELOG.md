@@ -1,12 +1,10 @@
 # Changelog
 
+All notable changes to this project are documented here.
 
 ## [0.7.7] - 2026-09-22
 
-### Added
-
-- Feature `library-connect-reads-the-same-env-as-the-cli-em` shipped to develop.
-All notable changes to this project are documented here.
+- `connect()` reads the same env as the CLI. Permission-denied SSH is `AuthError`. `wait_until_login` after the banner. `Instance` is the keep-alive handle. RunPod-only `ensure_ssh_key` appends a `.pub`.
 
 ## [0.7.6] - 2026-09-19
 
