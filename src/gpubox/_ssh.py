@@ -69,6 +69,18 @@ def ssh_options(key: Path, port: int, provider: str = "SSH") -> list[str]:
     ]
 
 
+def _raise_ssh_failure(detail: str, *, provider: str) -> None:
+    text = (detail or "").strip() or "ssh failed"
+    lowered = text.lower()
+    if "permission denied" in lowered or "publickey" in lowered:
+        raise AuthError(
+            f"{provider}: SSH login failed (public key). The instance is already running. "
+            "Add the matching .pub to the provider account (RunPod: account SSH keys, "
+            "not RUNPOD_SSH_KEY) and retry."
+        )
+    raise ProviderError(text, provider=provider)
+
+
 def run_ssh(key: Path, host: str, port: int, user: str, command: str, *, provider: str) -> str:
     result = subprocess.run(
         ["ssh", *ssh_options(key, port, provider), f"{user}@{host}", command],
@@ -78,10 +90,7 @@ def run_ssh(key: Path, host: str, port: int, user: str, command: str, *, provide
         check=False,
     )
     if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "ssh failed").strip(),
-            provider=provider,
-        )
+        _raise_ssh_failure(result.stderr or result.stdout or "ssh failed", provider=provider)
     return result.stdout
 
 
@@ -113,7 +122,4 @@ def run_scp(key: Path, host: str, port: int, src: str, dst: str, *, provider: st
         check=False,
     )
     if result.returncode != 0:
-        raise ProviderError(
-            (result.stderr or result.stdout or "scp failed").strip(),
-            provider=provider,
-        )
+        _raise_ssh_failure(result.stderr or result.stdout or "scp failed", provider=provider)
