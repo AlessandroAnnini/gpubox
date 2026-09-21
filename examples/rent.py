@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import sys
 
-from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_ssh
+from gpubox import LaunchSpec, OfferQuery, connect, rank_offers, wait_until_login
 
 
 def main() -> int:
@@ -25,7 +25,7 @@ def main() -> int:
         return 1
     box = cloud.create(offers[0].id, LaunchSpec(image="ubuntu:22.04", disk_gb=16, label="gpubox-example"))
     try:
-        wait_until_ssh(cloud, box, timeout=30 if provider == "fake" else 300)
+        wait_until_login(cloud, box, timeout=30 if provider == "fake" else 300)
         command = "echo ok" if provider == "fake" else "nvidia-smi"
         print(cloud.run(box, command), end="")
     finally:

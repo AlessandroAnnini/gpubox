@@ -10,7 +10,7 @@ from gpubox._errors import GpuBoxError
 from gpubox._factory import ENV_KEYS, ENV_SSH, connect
 from gpubox._models import LaunchSpec, OfferQuery
 from gpubox._rank import rank_offers
-from gpubox._ssh import wait_until_ssh
+from gpubox._ssh import wait_until_login
 
 
 def _api_key(provider: str, explicit: str | None) -> str:
@@ -70,7 +70,7 @@ def cmd_rent(args: argparse.Namespace) -> int:
     rc = 1
     try:
         box = cloud.create(offers[0].id, spec)
-        wait_until_ssh(cloud, box, timeout=args.timeout)
+        wait_until_login(cloud, box, timeout=args.timeout)
         print(cloud.run(box, args.cmd), end="")
         rc = 0
     except GpuBoxError as exc:

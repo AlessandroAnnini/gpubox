@@ -1059,12 +1059,11 @@ cloud.destroy(box)</code></pre>
         <div class="mermaid">flowchart TD
   list["list_offers"] --> rank["rank_offers"]
   rank --> create["create"]
-  create --> banner["wait_until_ssh"]
-  banner --> login["wait_until_login"]
+  create --> login["wait_until_login"]
   login --> run["run or copy"]
   run --> destroy["destroy"]</div>
       </div>
-      <p class="diagram-note">List offers on one provider, rank that list, create the first id, wait for the banner then login, run or copy, then destroy.</p>
+      <p class="diagram-note">List offers on one provider, rank that list, create the first id, wait until login (banner then <code>ssh … true</code>), run or copy, then destroy.</p>
       <p class="prose"><code>wait_until_ssh</code> polls <code>status()</code> until <code>ssh_open</code> is true (TCP banner <code>SSH-</code>). <code>wait_until_login</code> then polls <code>ssh … true</code>. After <code>box = cloud.create(...)</code>, keep <code>box</code> and use <code>try</code> / <code>finally: destroy</code>. <code>rent</code> still always destroys. <code>status()</code> never reads or writes <code>/workspace/READY</code>. Pass that probe in <code>LaunchSpec.start_command</code> if you want it. Boot-watch and stuck-after-pull timers stay in the caller.</p>
     </div>
     </section>
@@ -1168,7 +1167,7 @@ gpubox destroy -p runpod INSTANCE_ID</code></pre>
         </thead>
         <tbody>
           <tr><td><code>list</code></td><td>Print id, GPU name, price. <code>--rank</code> sorts first.</td></tr>
-          <tr><td><code>rent</code></td><td>Rank, create the first offer, wait for SSH, run <code>--cmd</code>, always destroy.</td></tr>
+          <tr><td><code>rent</code></td><td>Rank, create the first offer, wait until login, run <code>--cmd</code>, always destroy.</td></tr>
           <tr><td><code>status</code></td><td>Print id, provider status, <code>ssh_open</code>.</td></tr>
           <tr><td><code>destroy</code></td><td>Destroy that id.</td></tr>
         </tbody>
